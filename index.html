@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpaceMandat · Mission Control</title>
+
+  <!-- Polices (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700;800&display=swap">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============================ BARRE LATÉRALE ============================ -->
+  <aside class="sidebar">
+    <div>
+      <div class="eyebrow">UN / programme 07</div>
+      <div class="brand">SPACE<span>MANDAT</span></div>
+    </div>
+    <nav class="nav">
+      <button class="active" data-view="command">◈ &nbsp; Centre de commandement</button>
+      <button data-view="operations">⌁ &nbsp; Opérations</button>
+      <button data-view="contracts">⊙ &nbsp; Contrats UN</button>
+      <button data-view="tech">⌘ &nbsp; Arbre technologique</button>
+    </nav>
+    <div class="side-foot">
+      SECTEUR SOLAIRE · A-01<br>
+      Mandat actif · <span style="color:var(--lime)">80 ans</span><br><br>
+      v0.9 prototype<br>Simulation locale
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ============================ EN-TÊTE ============================ -->
+    <header class="top">
+      <div>
+        <div class="eyebrow">JOURNAL DE BORD / TERRE</div>
+        <h1>Mission control</h1>
+        <p>Construire une présence humaine durable au-delà de la Terre.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="save">↓ Sauvegarder</button>
+        <button class="btn" id="load">↑ Charger</button>
+        <button class="btn primary" id="nextYear">Avancer d’un an&nbsp; →</button>
+      </div>
+    </header>
+
+    <!-- ============================ HUD ============================ -->
+    <section class="hud">
+      <div class="metric">
+        <div class="label">Budget disponible</div>
+        <div class="val" id="budget">—</div>
+        <div class="hint" id="budgetHint">+0M / an</div>
+      </div>
+      <!-- Recherche : valeur principale = réserve de points, indice = production par tour -->
+      <div class="metric">
+        <div class="label">Points de recherche</div>
+        <div class="val" id="research">—</div>
+        <div class="hint" id="researchHint">+0 points / tour</div>
+      </div>
+      <div class="metric">
+        <div class="label">Confiance UN</div>
+        <div class="val" id="confidence">—</div>
+        <div class="hint">mandat public</div>
+      </div>
+      <div class="metric year">
+        <div class="label">Année du mandat</div>
+        <div class="val" id="year">—</div>
+        <div class="hint">horizon 2106</div>
+      </div>
+    </section>
+
+    <!-- ============================ VUE : CENTRE DE COMMANDEMENT ============================ -->
+    <div id="command" class="view active">
+      <div class="notice">★ <b>Briefing 2026.</b> La fenêtre lunaire est ouverte. Lancez une mission depuis Opérations, puis développez des bâtiments pour créer vos revenus et votre recherche.</div>
+      <div class="grid">
+
+        <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
+        <div class="card map-card">
+          <h3>Carte du système solaire <span id="mapCount" style="float:right;color:var(--muted);font:10px 'DM Mono'"></span></h3>
+          <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
+          <div id="mapSites"></div>
+          <div class="legend"><i></i> distance relative · cliquer Opérations pour agir</div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h3>Activité en cours</h3>
+            <div class="mission-list" id="activity"></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h3>Bilan du dernier tour</h3>
+            <div class="bilan" id="bilan">
+              <div><span>Revenus</span><b>—</b></div>
+              <div><span>Dépenses</span><b>—</b></div>
+              <div><span>Net</span><b>—</b></div>
+            </div>
+            <p style="color:var(--muted);font-size:10px">Le bilan est calculé à chaque changement d’année.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================ VUE : OPÉRATIONS ============================ -->
+    <div id="operations" class="view">
+      <div class="section-head">
+        <div><h2>Opérations de colonisation</h2><p>Chaque décision engage le budget, le temps et la confiance internationale.</p></div>
+        <span class="tag">COÛTS EN MILLIONS</span>
+      </div>
+      <div class="ops-grid" id="ops"></div>
+    </div>
+
+    <!-- ============================ VUE : CONTRATS ============================ -->
+    <div id="contracts" class="view">
+      <div class="section-head">
+        <div><h2>Contrats UN</h2><p>Des objectifs publics qui structurent le mandat.</p></div>
+        <span class="tag orange">SUIVI AUTOMATIQUE</span>
+      </div>
+      <div class="contracts" id="contractsList"></div>
+    </div>
+
+    <!-- ============================ VUE : ARBRE TECHNOLOGIQUE ============================ -->
+    <div id="tech" class="view">
+      <div class="section-head">
+        <div><h2>Arbre technologique</h2><p>108 technologies · 6 branches · spécialisation libre</p></div>
+        <span class="tag green" id="techCount">0 / 108 DÉBLOQUÉES</span>
+      </div>
+      <div class="techwrap">
+        <div>
+          <div class="tabs" id="techTabs"></div>
+          <div class="graphbox"><div id="techGraph"></div></div>
+        </div>
+        <aside class="card techside" id="techSide"></aside>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Notification temporaire -->
+<div class="toast" id="toast"></div>
+
+<!-- ============================ TUTORIEL ============================ -->
+<div class="modal" id="tutorial">
+  <div class="card tutorial">
+    <button class="close" onclick="closeTutorial()">×</button>
+    <div class="eyebrow">PROTOCOLE D’INITIATION</div>
+    <h2 style="margin:8px 0 16px">Bienvenue dans SpaceMandat</h2>
+    <p>Vous dirigez le programme spatial civil de 2026 à 2106. Votre mandat : coloniser les sites clés sans perdre la confiance de l’UN.</p>
+    <ul>
+      <li><b style="color:var(--ink)">Missions :</b> une mission consomme un budget de base multiplié par la distance du site et arrive après plusieurs années. Le risque baisse avec la recherche.</li>
+      <li><b style="color:var(--ink)">Bâtiments :</b> chaque astre a ses propres bâtiments (logement, serre, labo, mine, énergie + un bâtiment spécial). Coût et rendement augmentent avec la distance, mais le rendement plus vite que le coût : les astres lointains sont plus rentables. La population fournit l’équipage (effectif), les emplacements et des revenus.</li>
+      <li><b style="color:var(--ink)">Technologies :</b> chaque branche agit sur un levier précis (énergie → centrales et mines, propulsion → coût et durée des missions, matériaux → coût des bâtiments, vie → population, information → recherche, sociétés → confiance et budget). Certaines débloquent des missions ou des bâtiments</li>
+      <li><b style="color:var(--ink)">Contrats :</b> réussir un objectif à temps augmente la confiance. Un échec la réduit.</li>
+      <li><b style="color:var(--ink)">Bilan :</b> utilisez « Avancer d’un an » pour percevoir les revenus, payer les dépenses et faire progresser les missions.</li>
+      <li><b style="color:var(--ink)">Sauvegarde :</b> l’état est stocké dans le navigateur via localStorage.</li>
+    </ul>
+    <button class="btn primary" onclick="closeTutorial()">Compris, commandant</button>
+  </div>
+</div>
+
+<!-- ============================ SCRIPTS ============================
+     Scripts classiques (pas de modules) : le jeu fonctionne aussi en double-cliquant
+     sur index.html. L'ORDRE DE CHARGEMENT EST IMPORTANT. -->
+<script src="js/data/techs.js"></script>   <!-- données : 108 technologies -->
+<script src="js/config.js"></script>       <!-- équilibrage : BALANCE, SITES, ARCH, CYC/OV, CONTRACTS -->
+<script src="js/utils.js"></script>        <!-- helpers de formatage, toast -->
+<script src="js/state.js"></script>        <!-- état de la partie, effets des technos -->
+<script src="js/mechanics.js"></script>    <!-- formules de calcul -->
+<script src="js/actions.js"></script>      <!-- actions du joueur, passage d'année, sauvegarde -->
+<script src="js/ui.js"></script>           <!-- affichage -->
+<script src="js/main.js"></script>         <!-- démarrage -->
+</body>
+</html>
