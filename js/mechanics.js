@@ -63,6 +63,7 @@ function siteCalc(i) {
               + n('farm') * B.population.farmCap
               + n('spec') * (x.cap || 0)) * (1 + M.cap);
   const food = B.population.baseFood
+             + n('hab')  * B.population.habFood
              + n('farm') * B.population.farmFood * sp('farm') * (1 + M.food);
 
   // Effectif : population disponible / équipage nécessaire
