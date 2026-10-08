@@ -10,9 +10,8 @@ colonisez 10 astres, développez 108 technologies et gardez la confiance de l'ON
 **En local** : double-cliquer sur `index.html`.
 
 **Sur GitHub Pages** :
-1. Pousser le dossier sur un dépôt GitHub.
-2. `Settings` → `Pages` → *Source* : `Deploy from a branch` → branche `main`, dossier `/ (root)`.
-3. Le jeu est disponible sur `https://<utilisateur>.github.io/<depot>/`.
+
+Le prototype est dispo ici :  https://electronovae.github.io/space-mandat-prototype/
 
 ## Structure
 
