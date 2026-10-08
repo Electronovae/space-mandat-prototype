@@ -3,7 +3,7 @@
 Jeu de gestion spatiale (prototype v0.9) : dirigez le programme spatial civil de l'ONU de 2026 à 2106,
 colonisez 10 astres, développez 108 technologies et gardez la confiance de l'ONU.
 
-100 % statique : HTML + CSS + JavaScript, **aucune dépendance, aucun build**.
+100 % statique : HTML + CSS + JavaScript, **aucune dépendance, aucun build**. 
 
 ## Lancer le jeu
 
