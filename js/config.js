@@ -52,13 +52,14 @@ const BALANCE = {
 
   // --- Population -----------------------------------------------------
   // capacité = (baseCap + hab×habCap×spéc + serres×farmCap + spécial.cap) × (1+bonus cap)
-  // nourriture = baseFood + serres × farmFood × spéc × (1+bonus food)
+  // nourriture = baseFood + logements × habFood + serres × farmFood × spéc × (1+bonus food)
   // La capacité réelle = min(capacité, nourriture)
   population: {
     baseCap: 30,        // habitants max sans aucun bâtiment
     habCap: 40,         // habitants max par logement
     farmCap: 10,        // habitants max par serre
-    baseFood: 40,       // rations sans serre
+    baseFood: 40,       // rations sans bâtiment
+    habFood: 30,        // rations fournies par logement (évite que la nourriture bloque la capacité)
     farmFood: 60,       // rations par serre
     growthFlat: 3,      // habitants gagnés par an (fixe)
     growthRate: 0.05,   // + % de la population actuelle par an (× (1+bonus grow))
