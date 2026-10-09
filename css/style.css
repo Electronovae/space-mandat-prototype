@@ -1071,3 +1071,29 @@ svg.links {
 .chips button:hover { color: var(--lime); border-color: var(--lime); }
 .setup-hint { margin-top: 20px; color: var(--muted); line-height: 1.6; font-size: 11px; }
 .setup-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+/* ===== Opérations : indications sous POPULATION / BÂTIMENTS ===== */
+.site-meta small { display: block; margin-top: 4px; font-size: 9px; color: var(--muted); }
+.site-meta small.up { color: var(--lime); }
+.site-meta small.down { color: var(--orange); }
+
+/* ===== Prérequis multi-branches des astres ===== */
+.reqs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 10px 0 2px; }
+.reqs > span { color: var(--muted); font-size: 9px; letter-spacing: .1em; margin-right: 4px; }
+.req {
+  padding: 3px 6px;
+  font-size: 10px;
+  border: 1px solid var(--c, var(--line));
+  color: var(--c, var(--muted));
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: .8;
+}
+.req:hover { opacity: 1; background: #1b3d35; }
+.req.ok { background: #1c3324; opacity: 1; }
+
+/* ===== Contrats : type de récompense ===== */
+.pay { font-weight: 500; }
+.pay.conf { color: var(--lime); }
+.pay.budget { color: var(--yellow); }
+.pay.rp { color: var(--cyan); }

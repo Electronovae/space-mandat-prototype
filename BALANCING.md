@@ -24,6 +24,9 @@ Tout est commenté dans `js/config.js`. Résumé : **quoi modifier pour quel eff
 | Modifier / ajouter un contrat de l'ONU     | `CONTRACT_POOL` (utiliser `cSite` ou `cNum`)              |
 | Nombre de contrats au départ / rythme      | `BALANCE.contracts.*`                                     |
 | Rendre une exoplanète plus / moins accessible | `SITES[i]` (`exo:true`) : `d`, `c`, `w`, `req`         |
+| Changer les technologies requises pour un astre | `SITES[i].req` (liste d'ids, plusieurs branches)        |
+| Verrouiller labos / mines par une techno   | `ARCH[...].tech`                                          |
+| Type et montant des récompenses de contrat | `BALANCE.contracts.rewardWeights` · `rewardValue` · `rewardGrowth` |
 
 ## Points d'attention
 
@@ -31,9 +34,17 @@ Tout est commenté dans `js/config.js`. Résumé : **quoi modifier pour quel eff
   (l'ancien contrat « 65 % jusqu'en 2070 » était validé dès le premier tour).
 - **Contrats tirés au hasard** : un contrat déjà rempli au moment du tirage est écarté ; `after` retarde
   l'apparition des contrats ambitieux ; l'échéance doit tenir dans l'horizon choisi.
+- **Toutes les branches sont indispensables** : chaque astre exige des technologies de plusieurs branches
+  (`SITES[i].req`, voir le panneau « Prérequis » des cartes Opérations ; un clic ouvre la techno).
+  Coût cumulé en RP pour débloquer (avec `techCostMult` = 3) : Phobos ~50, Mars ~80, Cérès/Vesta ~160,
+  Europe ~320, Titan ~490, Triton ~600, Proxima b ~1 350, Barnard b ~1 800, Teegarden b ~2 200,
+  Gliese 667 Cc ~2 800, TRAPPIST-1 e ~3 400. Labos et mines demandent aussi une techno (I01, M01).
+  Si ces rythmes sont trop lents ou trop rapides : `BALANCE.research.baseRate` / `techCostMult`.
+- **Récompenses de contrat** : le type (confiance 40 %, trésorerie 30 %, recherche 30 %) est tiré à la
+  proposition. Trésorerie = `reward` × 12 M, recherche = `reward` × 1,6 RP, tous deux +2,5 %/an de mandat.
+  L'échec coûte toujours de la confiance.
 - **Exoplanètes** : distance ×11 à ×26 → missions à ~1 400–5 700 M (avant bonus) et rendement ×29 à ×97.
-  Elles sont accessibles via P09 (~440 RP cumulés), P12 (~1 000), P13 (~1 230), P14 (~1 700), P17 (~2 400).
-  Avec un horizon de 40 ans, elles sont hors de portée en pratique.
+  Sur l'horizon standard (80 ans) elles restent un défi ; elles se visent plutôt avec 100 ans ou plus.
 - Les valeurs affichées (`unitTxt` dans `ui.js`) sont recalculées depuis `BALANCE` : pas besoin de les modifier à la main.
 - Après un changement de structure de l'état, l'ancienne sauvegarde peut devenir incompatible : changer `SAVE_KEY` dans `actions.js` (déjà passé à `spacemandat-save3`).
 - Pour tester vite : dans la console du navigateur, `state.budget = 99999` puis `render()`.

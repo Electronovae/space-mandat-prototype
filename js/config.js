@@ -4,7 +4,7 @@
    Sommaire :
      1. BALANCE   constantes globales (économie, population, confiance…)
      2. SITES     les 15 astres colonisables (10 du système + 5 exoplanètes)
-     3. ARCH      les 6 types de bâtiments
+     3. ARCH      les 6 types de bâtiments (certains verrouillés par une technologie)
      4. BRANCHES / ERAS
      5. CYC / OV  effets des technologies
      6. CONTRACTS contrats de l'ONU
@@ -39,12 +39,18 @@ const BALANCE = {
     initial: 5,         // contrats tirés au début de la partie
     offerEvery: 7,      // un nouveau contrat est proposé tous les N ans…
     maxActive: 6,       // …tant qu'il y en a moins de N d'actifs
+    // Type de récompense, tiré au hasard à la proposition du contrat :
+    //   conf   = + confiance ONU (reward points)
+    //   budget = + trésorerie (M)        rp = + points de recherche
+    rewardWeights: { conf: 4, budget: 3, rp: 3 },   // probabilités relatives
+    rewardValue:   { budget: 12, rp: 1.6 },         // M ou RP par point de `reward` du contrat
+    rewardGrowth:  0.025,                           // les montants en M / RP gonflent de +2,5 % par an de mandat
   },
 
   // --- Recherche ------------------------------------------------------
   research: {
-    baseRate: 4,        // RP/an produits sans aucun labo (avant bonus de techs)
-    techCostMult: 4,    // coût réel d'une techno = cost (techs.js) × cette valeur
+    baseRate: 6,        // RP/an produits sans aucun labo (avant bonus de techs)
+    techCostMult: 3,    // coût réel d'une techno = cost (techs.js) × cette valeur
   },
 
   // --- Distance -------------------------------------------------------
@@ -137,7 +143,9 @@ const BALANCE = {
      d      distance (multiplie coûts ET rendements, voir BALANCE.distance)
      c      coût de base de la mission (× d × (1 − bonus launch))
      w      fenêtre de trajet en années (× (1 − bonus travel), min 1 an)
-     req    techno de propulsion requise pour lancer la mission (null = aucune)
+     req    technologies requises pour lancer la mission : liste d'ids, idéalement de PLUSIEURS
+            branches (propulsion pour le trajet, mais aussi énergie, matériaux, vie, information,
+            sociétés). null ou [] = aucune. Le panneau « Prérequis » de chaque astre les affiche.
      st     techno requise pour construire le bâtiment spécial
      sp     spécialités : multiplicateurs par type de bâtiment
             (clés : hab, farm, lab, mine, power)
@@ -155,53 +163,54 @@ const BALANCE = {
               build     −% coût des bâtiments (TOUS les sites)
    --------------------------------------------------------------------- */
 const SITES = [
-  { n:'Lune',     label:'LUNE',     d:1.2, c:30,  w:2,  req:null,  st:'M01', sp:{mine:1.3},            tag:'Hélium-3 · mines +30 %',
+  { n:'Lune',     label:'LUNE',     d:1.2, c:30,  w:2,  req:['M01'],  st:'M01', sp:{mine:1.3},            tag:'Hélium-3 · mines +30 %',
     nm:['Base souterraine','Serre en lave-tube','Labo lunaire','Mine de régolithe','Champ solaire polaire','Extracteur d’hélium-3'], x:{budget:9} },
 
-  { n:'Mars',     label:'MARS',     d:1.8, c:55,  w:5,  req:'P02', st:'M02', sp:{hab:1.3, farm:1.2},   tag:'Atmosphère · habitats +30 %',
+  { n:'Mars',     label:'MARS',     d:1.8, c:55,  w:5,  req:['P02','V03','E02','S01'], st:'M02', sp:{hab:1.3, farm:1.2},   tag:'Atmosphère · habitats +30 %',
     nm:['Habitat enterré','Serre pressurisée','Observatoire martien','Mine de perchlorates','Ferme solaire','Dôme pressurisé'], x:{cap:110, conf:0.3} },
 
-  { n:'Cérès',    label:'CERES',    d:2.5, c:75,  w:7,  req:'P03', st:'M04', sp:{mine:1.4},            tag:'Eau · mines +40 %',
+  { n:'Cérès',    label:'CERES',    d:2.5, c:75,  w:7,  req:['P03','M04','I03','S02'], st:'M04', sp:{mine:1.4},            tag:'Eau · mines +40 %',
     nm:['Cavité habitée','Serre sous glace','Labo cryogénique','Mine de volatils','Réacteur compact','Raffinerie d’eau'], x:{launch:0.06} },
 
-  { n:'Vesta',    label:'VESTA',    d:2.7, c:70,  w:7,  req:'P03', st:'M03', sp:{mine:1.5},            tag:'Métaux · mines +50 %',
+  { n:'Vesta',    label:'VESTA',    d:2.7, c:70,  w:7,  req:['P03','M04','E03','S03'], st:'M03', sp:{mine:1.5},            tag:'Métaux · mines +50 %',
     nm:['Habitat de basalte','Serre en cratère','Labo de géologie','Mine de fer-nickel','Collecteur solaire','Fonderie de basalte'], x:{build:0.04} },
 
-  { n:'Europe',   label:'EUROPE',   d:3.4, c:100, w:10, req:'P05', st:'M05', sp:{lab:1.5},             tag:'Océan · labos +50 %',
+  { n:'Europe',   label:'EUROPE',   d:3.4, c:100, w:10, req:['P05','V05','I04','S04'], st:'M05', sp:{lab:1.5},             tag:'Océan · labos +50 %',
     nm:['Station sous glace','Serre thermale','Labo d’astrobiologie','Mine de sels','Réacteur à fission','Sonde sous-glaciaire'], x:{research:8} },
 
-  { n:'Titan',    label:'TITAN',    d:4.1, c:120, w:12, req:'P06', st:'M05', sp:{mine:1.6, power:1.3}, tag:'Hydrocarbures · mines +60 %',
+  { n:'Titan',    label:'TITAN',    d:4.1, c:120, w:12, req:['P06','E05','M05','V05','I05'], st:'M05', sp:{mine:1.6, power:1.3}, tag:'Hydrocarbures · mines +60 %',
     nm:['Dôme chauffé','Serre à lampes','Labo prébiotique','Puits de méthane','Turbine atmosphérique','Usine d’hydrocarbures'], x:{budget:14} },
 
-  { n:'Triton',   label:'TRITON',   d:6.2, c:180, w:17, req:'P07', st:'I04', sp:{lab:1.3},             tag:'Avant-poste profond · prestige',
+  { n:'Triton',   label:'TRITON',   d:6.2, c:180, w:17, req:['P07','E06','M06','I05','S05'], st:'I04', sp:{lab:1.3},             tag:'Avant-poste profond · prestige',
     nm:['Cellule cryogénique','Serre isolée','Labo de plasma','Mine d’azote','Réacteur autonome','Relais profond'], x:{research:4, conf:0.6} },
 
   { n:'L1 Terre', label:'L1',       d:1.1, c:24,  w:1,  req:null,  st:'M02', sp:{power:1.4},           tag:'Transit · énergie +40 %',
     nm:['Anneau habité','Serre orbitale','Labo en microgravité','Atelier d’astéroïdes','Panneaux solaires','Station de transit'], x:{launch:0.05} },
 
-  { n:'Phobos',   label:'PHOBOS',   d:1.9, c:60,  w:6,  req:'P02', st:'M03', sp:{mine:1.2},            tag:'Chantier · bâtiments moins chers',
+  { n:'Phobos',   label:'PHOBOS',   d:1.9, c:60,  w:6,  req:['P02','M02','I01'], st:'M03', sp:{mine:1.2},            tag:'Chantier · bâtiments moins chers',
     nm:['Hangar pressurisé','Serre blindée','Labo de bord','Carrière de régolithe','Collecteur solaire','Chantier orbital'], x:{build:0.05} },
 
-  { n:'Ganymède', label:'GANYMÈDE', d:3.8, c:110, w:11, req:'P05', st:'V04', sp:{hab:1.4},             tag:'Bouclier magnétique · habitats +40 %',
+  { n:'Ganymède', label:'GANYMÈDE', d:3.8, c:110, w:11, req:['P05','V04','E03','S04'], st:'V04', sp:{hab:1.4},             tag:'Bouclier magnétique · habitats +40 %',
     nm:['Cité enterrée','Serre sous bouclier','Labo magnétosphérique','Mine de glace','Réacteur à fission','Cité-bouclier'], x:{cap:150, research:3} },
 
   /* --- Hors système solaire (fin de partie) -----------------------------
      Distances énormes : missions très chères et très longues, mais rendement
-     F = d^1,35 très élevé. Verrouillées par les technologies de propulsion
-     tardives (ères 5-6) : compter ~450 à ~2 400 RP cumulés pour les débloquer. */
-  { n:'Proxima b',     label:'PROXIMA',   exo:true, ly:4.2,  d:11, c:220, w:22, req:'P09', st:'I09', sp:{lab:1.3},                 tag:'Premier monde voisin · 4,2 al · labos +30 %',
+     F = d^1,35 très élevé. Verrouillées par des technologies des SIX branches
+     (ères 4 à 6) : compter ~1 350 RP cumulés pour Proxima b, jusqu'à ~3 400 RP
+     pour TRAPPIST-1 e. */
+  { n:'Proxima b',     label:'PROXIMA',   exo:true, ly:4.2,  d:11, c:220, w:22, req:['P09','E08','M08','V08','I08','S08'], st:'I09', sp:{lab:1.3},                 tag:'Premier monde voisin · 4,2 al · labos +30 %',
     nm:['Dôme sous tempête stellaire','Serre sous bouclier','Observatoire de Proxima','Mine de silicates','Collecteur d’éruptions','Relais interstellaire'], x:{research:10, conf:0.5} },
 
-  { n:'Barnard b',     label:'BARNARD',   exo:true, ly:6.0,  d:13, c:240, w:26, req:'P12', st:'M09', sp:{mine:1.5},                tag:'Monde glacé · 6 al · mines +50 %',
+  { n:'Barnard b',     label:'BARNARD',   exo:true, ly:6.0,  d:13, c:240, w:26, req:['P12','E09','M09','V09','I09','S09'], st:'M09', sp:{mine:1.5},                tag:'Monde glacé · 6 al · mines +50 %',
     nm:['Cité sous la glace','Serre géothermique','Labo cryogénique profond','Mine de métaux lourds','Réacteur à fusion','Foreuse autonome'], x:{budget:30} },
 
-  { n:'Teegarden b',   label:'TEEGARDEN', exo:true, ly:12.5, d:16, c:270, w:30, req:'P13', st:'E09', sp:{hab:1.3, power:1.2},      tag:'Monde tempéré · 12,5 al · habitats +30 %',
+  { n:'Teegarden b',   label:'TEEGARDEN', exo:true, ly:12.5, d:16, c:270, w:30, req:['P13','E10','M10','V10','I10','S10'], st:'E09', sp:{hab:1.3, power:1.2},      tag:'Monde tempéré · 12,5 al · habitats +30 %',
     nm:['Cité-jardin','Serre océanique','Labo planétaire','Mine d’éléments rares','Centrale à fusion','Anneau d’énergie'], x:{cap:200, budget:20} },
 
-  { n:'Gliese 667 Cc', label:'GJ 667',    exo:true, ly:23.6, d:20, c:320, w:34, req:'P14', st:'V09', sp:{hab:1.4, farm:1.3},       tag:'Zone habitable · 23,6 al · habitats +40 %',
+  { n:'Gliese 667 Cc', label:'GJ 667',    exo:true, ly:23.6, d:20, c:320, w:34, req:['P14','E12','M12','V12','I12','S12'], st:'V09', sp:{hab:1.4, farm:1.3},       tag:'Zone habitable · 23,6 al · habitats +40 %',
     nm:['Arcologie','Serre continentale','Labo de biosphère','Mine orbitale','Réacteur de fusion','Terraformeur'], x:{cap:260, conf:0.8} },
 
-  { n:'TRAPPIST-1 e',  label:'TRAPPIST',  exo:true, ly:40.7, d:26, c:380, w:40, req:'P17', st:'S09', sp:{hab:1.5, farm:1.4, lab:1.2}, tag:'Le grand projet · 40,7 al · habitats +50 %',
+  { n:'TRAPPIST-1 e',  label:'TRAPPIST',  exo:true, ly:40.7, d:26, c:380, w:40, req:['P17','E16','M14','V14','I14','S14'], st:'S09', sp:{hab:1.5, farm:1.4, lab:1.2}, tag:'Le grand projet · 40,7 al · habitats +50 %',
     nm:['Métropole planétaire','Biome synthétique','Institut interstellaire','Mine de fond de puits','Réseau de fusion','Capitale de l’humanité'], x:{cap:350, research:12, conf:1.2} },
 ];
 
@@ -220,8 +229,8 @@ const SITES = [
 const ARCH = [
   { k:'hab',   ic:'⌂', c:20 },                   // logement : capacité d'accueil
   { k:'farm',  ic:'♧', c:18, tech:'V01' },       // serre : nourriture + un peu de capacité
-  { k:'lab',   ic:'⚗', c:30 },                   // labo : recherche
-  { k:'mine',  ic:'⛏', c:25 },                   // mine : budget
+  { k:'lab',   ic:'⚗', c:30, tech:'I01' },       // labo : recherche (Automatisation industrielle)
+  { k:'mine',  ic:'⛏', c:25, tech:'M01' },       // mine : budget (ISRU lunaire)
   { k:'power', ic:'⚡', c:28, tech:'E01' },       // énergie : bonus % de production du site
   { k:'spec',  ic:'✦', c:50, max:3 },            // spécial : effet propre à chaque astre (SITES[i].x)
 ];
@@ -309,7 +318,9 @@ const ZERO = {
      id        identifiant unique
      name      libellé affiché
      years     délai accordé à partir de la proposition (échéance = année de tirage + years)
-     reward    + confiance si réussi (× (1 + bonus tech "reward"))
+     reward    récompense de base (× (1 + bonus tech "reward")). Le TYPE (confiance, trésorerie ou
+               points de recherche) est tiré au hasard à la proposition, voir BALANCE.contracts ;
+               pour conf = points de confiance, sinon converti en M ou en RP
      penalty   confiance perdue si échec (par défaut −reward/2)
      after     (optionnel) n'est proposé qu'au bout de N ans de mandat (contrats de fin de partie)
      hold      (optionnel) true = condition à MAINTENIR jusqu'à l'échéance : échec dès qu'elle
@@ -378,7 +389,12 @@ const CONTRACT_POOL = [
   cNum('tech40', 'Développer 40 technologies',  50, 20, s => s.tech.length, 40, 'technos', { after: 10 }),
   cNum('tech80', 'Développer 80 technologies',  65, 28, s => s.tech.length, 80, 'technos', { after: 25 }),
   cNum('rp25',   'Produire 25 RP/an',           35, 14, () => totals().res, 25, 'RP/an'),
+  cSite('fusion', 'Maîtriser la fusion magnétique (E04)',           40, 14, s => s.tech.includes('E04')),
   cSite('voile',  'Maîtriser la voile laser (P07)',        45, 16, s => s.tech.includes('P07')),
+  cSite('ascens', 'Construire l’ascenseur spatial (M06)',  50, 16, s => s.tech.includes('M06'), { after: 5 }),
+  cSite('biosyn', 'Maîtriser la biologie synthétique (V07)', 55, 18, s => s.tech.includes('V07'), { after: 10 }),
+  cSite('iagen',  'Mettre au point l’IA générale alignée (I07)', 55, 18, s => s.tech.includes('I07'), { after: 10 }),
+  cSite('multi',  'Adopter les constitutions multi-habitat (S07)', 60, 20, s => s.tech.includes('S07'), { after: 15 }),
   cSite('bussard','Maîtriser le ramjet de Bussard (P09)',  60, 24, s => s.tech.includes('P09'), { after: 20 }),
 
   // --- Confiance ---

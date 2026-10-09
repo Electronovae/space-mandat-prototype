@@ -56,9 +56,11 @@ function renderMap() {
 
   $('mapExo').innerHTML = outside.map(([S, i]) => {
     const s = state.sites[i];
-    const cls = s.colonized ? 'on' : s.mission ? 'fly' : (S.req && !has(S.req)) ? 'lock' : '';
+    const miss = missingReqs(i);
+    const cls = s.colonized ? 'on' : s.mission ? 'fly' : miss.length ? 'lock' : '';
     const st = s.colonized ? 'colonisée' : s.mission ? 'en vol · ' + s.mission.arrival
-             : (S.req && !has(S.req)) ? 'requiert ' + S.req : 'accessible';
+             : miss.length ? miss.length + ' techno' + (miss.length > 1 ? 's' : '') + ' manquante' + (miss.length > 1 ? 's' : '')
+             : 'accessible';
     return `<div class="exo-chip ${cls}" title="${S.n} · ${S.tag}">${S.label}<small>${S.ly} al · ${st}</small></div>`;
   }).join('');
 
@@ -166,7 +168,22 @@ function buildRow(i, a, j, M, c) {
     </div>${btn}</div>`;
 }
 
-/* Cartes des 10 sites */
+/* Puces de prérequis d'un astre : une par technologie, colorée selon sa branche,
+   verte quand elle est développée ; un clic ouvre la technologie dans l'arbre. */
+function reqChips(i) {
+  return siteReqs(i).map(id => {
+    const br = BRANCHES.find(b => b[0] === id[0]);
+    return `<a class="req ${has(id) ? 'ok' : ''}" style="--c:${br[2]}" title="${br[1]} · ${tname(id)}${has(id) ? ' (développée)' : ''}" onclick="openTech('${id}')">${id}${has(id) ? ' ✓' : ''}</a>`;
+  }).join('');
+}
+
+/* Ouvre l'arbre technologique sur une technologie donnée */
+function openTech(id) {
+  document.querySelector('.nav button[data-view="tech"]').click();
+  jumpToTech(id);
+}
+
+/* Cartes des sites */
 function renderOps() {
   const M = getModifiers();
 
@@ -183,11 +200,23 @@ function renderOps() {
       let action;
       if (s.mission)
         action = `<button class="btn warning" disabled>Mission en vol · ${s.mission.arrival}</button>`;
-      else if (S.req && !has(S.req))
-        action = `<button class="btn" disabled title="${tname(S.req)}">Requiert ${S.req} · ${tname(S.req)}</button>`;
+      else if (missingReqs(i).length)
+        action = `<button class="btn" disabled>${missingReqs(i).length} technologie${missingReqs(i).length > 1 ? 's' : ''} manquante${missingReqs(i).length > 1 ? 's' : ''}</button>`;
       else
         action = `<button class="btn primary" onclick="launch(${i})">Lancer la mission · ${money(missionCost(i))}</button>`;
-      body = `<div class="build-actions">${action}</div>`;
+      body = `<div class="reqs"><span>PRÉREQUIS</span>${reqChips(i)}</div><div class="build-actions">${action}</div>`;
+    }
+
+    // Indications : croissance de population par tour, et tours avant le prochain emplacement
+    let popNote = '', slotNote = '';
+    if (s.colonized) {
+      const g = popGrowth(i), t = turnsToNextSlot(i);
+      popNote = g > 0.05 ? `<small class="up">+${R(g, 1)} / tour</small>`
+              : g < -0.05 ? `<small class="down">${R(g, 1)} / tour</small>`
+              : `<small>stable · capacité atteinte</small>`;
+      slotNote = t !== null
+        ? `<small class="up">+1 emplacement dans ${t} tour${t > 1 ? 's' : ''}</small>`
+        : `<small class="down">limite bloquée · agrandir la capacité</small>`;
     }
 
     const popBar = s.colonized
@@ -204,8 +233,8 @@ function renderOps() {
       <div class="site-tag">${S.tag}</div>
       <div class="site-meta">
         <div>MISSION<b>${money(missionCost(i))}</b></div>
-        <div>POPULATION<b>${Math.round(c.pop)}${s.colonized ? ' / ' + c.cap : ''}</b>${popBar}</div>
-        <div>BÂTIMENTS<b>${s.colonized ? c.used + ' / ' + c.slots : 0}</b></div>
+        <div>POPULATION<b>${Math.round(c.pop)}${s.colonized ? ' / ' + c.cap : ''}</b>${popBar}${popNote}</div>
+        <div>BÂTIMENTS<b>${s.colonized ? c.used + ' / ' + c.slots : 0}</b>${slotNote}</div>
       </div>${body}</article>`;
   }).join('');
 }
@@ -214,7 +243,6 @@ function renderOps() {
    CONTRATS UN
    ===================================================================== */
 function renderContracts() {
-  const rewardBonus = getModifiers().reward;
   const rank = c => (c.done || c.failed ? 1 : 0);
   const list = [...state.contracts].sort((a, b) => rank(a) - rank(b) || a.deadline - b.deadline);
 
@@ -228,6 +256,7 @@ function renderContracts() {
     const tagClass = c.done ? 'green' : c.failed ? 'orange' : '';
     const tagText = c.done ? 'RÉUSSI' : c.failed ? 'ÉCHOUÉ' : 'ACTIF';
     const left = c.deadline - state.year;
+    const pay = contractPayout(c);
 
     let note = def.hold
       ? `À maintenir jusqu’en ${c.deadline}` : `Échéance : ${c.deadline}`;
@@ -245,7 +274,7 @@ function renderContracts() {
     return `<div class="contract ${c.done ? 'ok' : ''} ${c.failed ? 'ko' : ''}">
       <div class="contract-top"><strong>${def.name}</strong><span class="tag ${tagClass}">${tagText}</span></div>
       <p>${note} · évalué automatiquement au passage de l’année.</p>${prog}
-      <div class="reward">SUCCÈS +${Math.round(def.reward * (1 + rewardBonus))}% confiance&nbsp;&nbsp; / &nbsp;&nbsp;<span style="color:var(--danger)">ÉCHEC ${def.penalty}%</span></div>
+      <div class="reward">SUCCÈS <b class="pay ${pay.kind}">${payoutText(pay)}</b>&nbsp;&nbsp; / &nbsp;&nbsp;<span style="color:var(--danger)">ÉCHEC ${def.penalty} % confiance</span></div>
     </div>`;
   }).join('');
 }
@@ -285,8 +314,9 @@ function updateSetup() {
                        : ratio >= 0.55 ? ['Exigeant', 'var(--orange)']
                        : ['Très difficile', 'var(--danger)'];
   $('setupHint').innerHTML = `Difficulté estimée : <b style="color:${color}">${label}</b>. `
-    + (horizon < 60 ? 'Un mandat court ne laisse guère de chances d’atteindre les mondes hors système. '
-       : horizon >= 100 ? 'Un mandat long permet de viser les exoplanètes de fin de partie. ' : '');
+    + (horizon < 60 ? 'Un mandat court met les mondes hors système hors de portée. '
+       : horizon < 100 ? 'Les exoplanètes de fin de partie resteront un défi sur cet horizon. '
+       : 'Un mandat long permet de viser les exoplanètes de fin de partie. ');
 }
 
 function setSetup(id, v) { $(id).value = v; updateSetup(); }
@@ -397,8 +427,8 @@ function renderTechSide() {
 
   // Ce que la techno débloque : missions, bâtiments généraux, bâtiments spéciaux
   const unlocks = [
-    ...SITES.filter(S => S.req === t.id).map(S => 'Mission vers ' + S.n),
-    ...(ARCH.some(a => a.tech === t.id) ? ['Bâtiment : ' + (t.id === 'V01' ? 'serres' : 'centrales')] : []),
+    ...SITES.filter(S => [].concat(S.req || []).includes(t.id)).map(S => 'Requise pour la mission vers ' + S.n),
+    ...ARCH.filter(a => a.tech === t.id).map(a => 'Bâtiment : ' + ({ farm: 'serres', power: 'centrales', lab: 'laboratoires', mine: 'mines' }[a.k] || a.k)),
     ...SITES.filter(S => S.st === t.id).map(S => S.nm[5] + ' · ' + S.n),
   ];
   const dependants = TECH.filter(x => x.prerequisites.includes(t.id));

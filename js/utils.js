@@ -44,3 +44,11 @@ function fxText(effects) {
     .filter(k => effects[k] && FX_LABELS[k])
     .map(k => FX_LABELS[k](+R(effects[k], 3)));
 }
+
+/* Texte d'une récompense de contrat : { kind, amount } → « +20 % confiance », « +240M », « +32 RP » */
+const PAYOUT_LABELS = {
+  conf:   a => `+${Math.round(a)} % confiance`,
+  budget: a => `+${Math.round(a)}M de trésorerie`,
+  rp:     a => `+${Math.round(a)} RP`,
+};
+const payoutText = p => PAYOUT_LABELS[p.kind](p.amount);

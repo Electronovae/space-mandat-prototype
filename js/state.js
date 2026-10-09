@@ -32,7 +32,7 @@ TECH.forEach(t => {
    choisis dans la fenêtre de démarrage (valeurs par défaut : BALANCE.setup).
    state.endYear = année de fin du mandat
    state.sites[i] = { colonized, pop, b:{hab:n,farm:n,…}, mission:{arrival,duration}|null }
-   state.contracts = contrats tirés : [{ id, from, deadline, done, failed }]
+   state.contracts = contrats tirés : [{ id, from, deadline, done, failed, kind, amount }]
                      (définition dans CONTRACT_POOL, config.js)
    state.tech = liste d'ids de technologies développées
    Les contrats sont tirés par newGame() (actions.js), pas ici.
@@ -68,7 +68,14 @@ function drawContract(st) {
     (d.hold ? d.check(st) : !d.check(st)));
   if (!pool.length) return null;
   const def = pool[Math.floor(Math.random() * pool.length)];
-  const entry = { id: def.id, from: st.year, deadline: st.year + def.years, done: false, failed: false };
+  // Type de récompense tiré au hasard (pondéré), montant fixé dès maintenant
+  const K = BALANCE.contracts;
+  let roll = Math.random() * Object.values(K.rewardWeights).reduce((a, b) => a + b, 0), kind = 'conf';
+  for (const [k, w] of Object.entries(K.rewardWeights)) { if ((roll -= w) < 0) { kind = k; break; } }
+  const amount = kind === 'conf'
+    ? def.reward
+    : Math.round(def.reward * K.rewardValue[kind] * (1 + elapsed * K.rewardGrowth) / (kind === 'budget' ? 5 : 1)) * (kind === 'budget' ? 5 : 1);
+  const entry = { id: def.id, from: st.year, deadline: st.year + def.years, done: false, failed: false, kind, amount };
   st.contracts.push(entry);
   return entry;
 }

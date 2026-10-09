@@ -133,3 +133,59 @@ const duration = i => Math.max(1, Math.round(SITES[i].w * (1 - getModifiers().tr
 const bCost = (i, a) =>
   a.c * SITES[i].d * (1 - getModifiers().build)
   * (1 + BALANCE.costs.buildGrowth * (state.sites[i].b[a.k] || 0));
+
+/* ---------------------------------------------------------------------
+   Évolution de la population (utilisé par nextYear ET par l'affichage)
+   stepPop : population de l'année suivante, pour une capacité `cap` donnée
+     · si pop > cap : décroît de ×declineRate, sans passer sous cap
+     · sinon        : croît de growthFlat + pop × growthRate × (1 + bonus grow), sans dépasser cap
+   --------------------------------------------------------------------- */
+function stepPop(pop, cap, M) {
+  const P = BALANCE.population;
+  return pop > cap
+    ? Math.max(cap, pop * P.declineRate)
+    : Math.min(cap, pop + P.growthFlat + pop * P.growthRate * (1 + M.grow));
+}
+
+// Variation de population attendue au prochain tour pour le site i (peut être négative)
+function popGrowth(i) {
+  const c = siteCalc(i);
+  return stepPop(c.pop, c.cap, getModifiers()) - c.pop;
+}
+
+/* Nombre de tours avant le prochain emplacement de bâtiment sur le site i.
+   Un emplacement s'ouvre tous les colony.popPerSlot habitants. On simule la croissance
+   avec la capacité actuelle ; renvoie null si le seuil est hors d'atteinte
+   (capacité trop basse ou population en déclin) : il faut alors plus de logements/serres. */
+function turnsToNextSlot(i) {
+  const c = siteCalc(i), M = getModifiers(), step = BALANCE.colony.popPerSlot;
+  const target = (Math.floor(c.pop / step) + 1) * step;
+  if (target > c.cap) return null;
+  let pop = c.pop;
+  for (let t = 1; t <= 200; t++) {
+    const next = stepPop(pop, c.cap, M);
+    if (next >= target - 1e-9) return t;
+    if (next <= pop + 1e-9) return null;   // plus de croissance : seuil jamais atteint
+    pop = next;
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------------------
+   Prérequis technologiques d'une mission (SITES[i].req : id, liste d'ids ou null)
+   --------------------------------------------------------------------- */
+const siteReqs = i => [].concat(SITES[i].req || []);
+const missingReqs = i => siteReqs(i).filter(id => !has(id));
+
+/* ---------------------------------------------------------------------
+   Récompense d'un contrat réussi : { kind: 'conf'|'budget'|'rp', amount }
+   Le type et le montant sont fixés au tirage (drawContract) ; le bonus de
+   technologies « reward » s'applique ensuite à tous les types.
+   (Anciennes sauvegardes sans type : confiance.)
+   --------------------------------------------------------------------- */
+function contractPayout(c) {
+  const def = CONTRACT_BY_ID[c.id];
+  const kind = c.kind || 'conf';
+  const base = c.amount ?? def.reward;
+  return { kind, amount: base * (1 + getModifiers().reward) };
+}

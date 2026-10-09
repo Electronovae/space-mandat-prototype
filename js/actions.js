@@ -19,7 +19,8 @@ function newGame(budget, horizon) {
 function launch(i) {
   const s = state.sites[i], S = SITES[i], cost = missionCost(i);
   if (s.colonized || s.mission) return;
-  if (S.req && !has(S.req)) { toast('Technologie requise : ' + tname(S.req)); return; }
+  const miss = missingReqs(i);
+  if (miss.length) { toast('Technologies requises : ' + miss.map(tname).join(', ')); return; }
   if (state.budget < cost)  { toast('Budget insuffisant pour cette mission.'); return; }
 
   state.budget -= cost;
@@ -75,7 +76,6 @@ function nextYear() {
 
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
-  const P = BALANCE.population;
 
   // 1. Budget
   state.budget += T.bud - T.upk;
@@ -91,10 +91,7 @@ function nextYear() {
   // 3. Population : décroît vers la capacité si dépassée, sinon croît
   state.sites.forEach((s, i) => {
     if (!s.colonized) return;
-    const cap = siteCalc(i).cap;
-    s.pop = s.pop > cap
-      ? Math.max(cap, s.pop * P.declineRate)
-      : Math.min(cap, s.pop + P.growthFlat + s.pop * P.growthRate * (1 + M.grow));
+    s.pop = stepPop(s.pop, siteCalc(i).cap, M);
   });
 
   // 4. Confiance et année
@@ -126,8 +123,11 @@ function nextYear() {
 
     if (result === 'win') {
       c.done = true;
-      state.confidence = Math.min(100, state.confidence + def.reward * (1 + M.reward));
-      toast('Contrat réussi : ' + def.name);
+      const pay = contractPayout(c);
+      if (pay.kind === 'budget') state.budget += pay.amount;
+      else if (pay.kind === 'rp') state.rp += pay.amount;
+      else state.confidence = Math.min(100, state.confidence + pay.amount);
+      toast('Contrat réussi : ' + def.name + ' · ' + payoutText(pay));
     } else if (result === 'fail') {
       c.failed = true;
       state.confidence = Math.max(0, state.confidence + def.penalty);

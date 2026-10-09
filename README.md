@@ -44,10 +44,15 @@ Stockée dans le `localStorage` du navigateur (clé `spacemandat-save3`).
 
 - **Fenêtre de démarrage** : choix du budget initial (150–1 500 M) et de l'horizon du mandat (40–120 ans),
   avec une estimation de la difficulté. Rouvrable via « Nouvelle partie ». Bornes dans `BALANCE.setup`.
-- **32 contrats UN tirés au hasard** (`CONTRACT_POOL`) : 5 au départ, puis un nouveau tous les 7 ans.
+- **37 contrats UN tirés au hasard** (`CONTRACT_POOL`) : 5 au départ, puis un nouveau tous les 7 ans.
   Délais relatifs au moment du tirage, barres de progression, contrats « à maintenir » (`hold`).
   Les contrats de fin de partie (`after`) n'apparaissent qu'au bout de plusieurs décennies, et jamais
   si leur échéance dépasse la fin du mandat.
+- **Récompenses variées** : chaque contrat rapporte au hasard de la confiance, de la trésorerie ou des points
+  de recherche.
+- **Toutes les branches comptent** : chaque astre exige des technologies de plusieurs branches (énergie,
+  propulsion, matériaux, vie, information, sociétés) ; labos et mines sont aussi verrouillés.
+- **Cartes Opérations** : croissance de population par tour et nombre de tours avant le prochain emplacement.
 - **5 exoplanètes** (Proxima b, Barnard b, Teegarden b, Gliese 667 Cc, TRAPPIST-1 e), verrouillées par
   les technologies de propulsion tardives (P09, P12, P13, P14, P17) et affichées dans la bande
   « hors système » de la carte.
