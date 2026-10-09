@@ -39,11 +39,16 @@ TECH.forEach(t => {
    --------------------------------------------------------------------- */
 function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizon.def) {
   const S = BALANCE.start;
+  // Les valeurs viennent normalement des curseurs HTML, mais fresh() est aussi
+  // appelée directement par le code : borner ici évite une partie incohérente.
+  const B = BALANCE.setup;
+  const safeBudget = Math.min(B.budget.max, Math.max(B.budget.min, Number(budget) || B.budget.def));
+  const safeHorizon = Math.min(B.horizon.max, Math.max(B.horizon.min, Number(horizon) || B.horizon.def));
   return {
     startYear: S.year,
-    endYear: S.year + horizon,
+    endYear: S.year + safeHorizon,
     year: S.year,
-    budget,
+    budget: safeBudget,
     rp: S.rp,
     confidence: S.confidence,
     sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null })),

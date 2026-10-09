@@ -220,7 +220,7 @@ function renderOps() {
     }
 
     const popBar = s.colonized
-      ? `<div class="popbar"><i style="width:${Math.min(100, c.pop / c.cap * 100)}%"></i></div>` : '';
+      ? `<div class="popbar"><i style="width:${c.cap > 0 ? Math.min(100, c.pop / c.cap * 100) : 0}%"></i></div>` : '';
 
     const sep = i === firstExo
       ? `<div class="ops-sep">HORS SYSTÈME SOLAIRE · missions interstellaires de fin de partie</div>` : '';
