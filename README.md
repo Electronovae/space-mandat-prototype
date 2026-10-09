@@ -1,6 +1,6 @@
 # SpaceMandat
 
-Jeu de gestion spatiale (prototype v0.9) : dirigez le programme spatial civil de l'ONU de 2026 jusqu'à l'horizon que vous choisissez (40 à 120 ans, 80 par défaut),
+Jeu de gestion spatiale (prototype v0.9) : dirigez le programme spatial civil de l'ONU de 2026 jusqu'à l'horizon que vous choisissez (40 à 200 ans, 80 par défaut),
 colonisez 15 astres (dont 5 exoplanètes de fin de partie), développez 108 technologies et gardez la confiance de l'ONU.
 
 100 % statique : HTML + CSS + JavaScript, **aucune dépendance, aucun build**. 
