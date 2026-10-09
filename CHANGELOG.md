@@ -28,3 +28,8 @@ construit ses centrales progressivement au lieu de rester bloquée à 25 % de co
 - La simulation reste une approximation volontaire : elle ne joue pas l’arbre technologique,
 les contrats ONU, les délais de mission ni la population de chaque astre.
 - Pas de test navigateur automatisé ni de test visuel multi-écrans.
+
+## Correctif v4 — bâtiments
+- **Cause exacte :** la fonction `build()` dans `js/actions.js` utilisait `S.n` et `S.nm[...]` pour les notifications, mais ne définissait plus la variable locale `S` après le refactor v3. Le premier clic de construction levait donc `ReferenceError: S is not defined`, après la mutation de l’état (budget débité / bâtiment ajouté), interrompant le rendu et donnant l’impression que les bâtiments ne fonctionnaient plus. Le chemin du Gros projet était atteint par le même défaut.
+- Correction : restauration de `const S = SITES[i]` dans `build()`.
+- Ajout de `scripts/smoke.js` pour tester mine, labo, centrale, Gros projet et destruction dans Node.

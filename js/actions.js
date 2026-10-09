@@ -31,7 +31,7 @@ function launch(i) {
 
 /* Construire un bâtiment de type k (clé de ARCH) sur le site i */
 function build(i, k) {
-  const s = state.sites[i];
+  const s = state.sites[i], S = SITES[i];
   const a = ARCH.find(x => x.k === k);
   const c = siteCalc(i), cost = bCost(i, a);
   const techId = k === 'spec' ? SITES[i].st : a.tech;      // techno requise éventuelle
