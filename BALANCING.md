@@ -1,48 +1,14 @@
-# Guide d'équilibrage
+# Équilibrage — prototype SpaceMandat v5
 
-Les constantes principales sont dans `js/config.js`. La simulation reproductible est
-`node scripts/simulate.js` et compare cinq stratégies simplifiées sur 80 ans.
+## Recherche et arbre technologique
 
-## Choix v3
+- **Avant v5 :** coût réel = `cost × 3`, donc 12–60 RP pour les coûts de base présents dans l’arbre. Les effets de cycle utilisaient un pas d’ère de 25 %.
+- **v5 :** coût = `cost × 2,5 × 1,18^(rang−1) × 1,38^(ère−1)`, arrondi au demi-RP. Il n’existe plus de plafond de niveau ou de points de recherche par technologie : une technologie est achetable une fois ses prérequis remplis et son coût payé.
+- Exemples (coût de base 4) : rang 1 / ère I = **10 RP** ; rang 10 / ère III ≈ **85 RP** ; rang 18 / ère VI ≈ **885 RP**. La fin de l’arbre est donc un investissement de mandat, pas une formalité.
+- Les effets de cycle sont renforcés : le pas d’ère passe de **+25 % à +55 %**, et les bases de cycle sont généralement augmentées d’environ **×1,5 à ×2** (selon le levier). Les surcharges `OV` sont elles aussi mises à l’échelle par l’ère.
 
-- **Recherche sans plafond artificiel** : le rendement des laboratoires suit une courbe
-d'apprentissage progressive (`+1,2 %/an`, plafonnée à +75 % pour rester raisonnable),
-au lieu de rester sur une production quasi linéaire qui aboutissait à 496 PR.
-- **Recherche viable** : rendement d'un laboratoire porté à 3,6 RP/an, entretien réduit à
-6 % dans la simulation et 5,5 % dans le jeu, coût de construction d'un labo réduit à 22 M,
-et revenu démographique porté à 0,08 M/habitant/an. La stratégie reste spécialisée et
-coûteuse, mais ne termine plus automatiquement à -104 M.
-- **Énergie pertinente mais non piégeuse** : le plancher de production déficitaire passe de
-25 % à 35 %. La stratégie `prudente` retarde ses centrales pendant les premières années,
-puis couvre progressivement sa consommation ; elle commence à 35 % et atteint 100 % au
-lieu de rester bloquée à 25 %.
-- **Stratégies différenciées** : `croissance` privilégie les serres et la population,
-`production` les mines, `recherche` les laboratoires, `projets` un Gros projet, et `prudente`
-un investissement énergétique décalé.
+## Compatibilité et limites
 
-## Paramètres de référence
+La logique de construction n’a pas été réécrite. La variable locale `S` de `actions.js` reste la définition du site utilisée pour les bâtiments et les Gros projets. Les plafonds de réduction des coûts/durées (`BALANCE.caps`) restent en place : ils empêchent les bonus cumulés de rendre les missions ou bâtiments gratuits, sans limiter la recherche elle-même.
 
-| Paramètre | v2 | v3 |
-|---|---:|---:|
-| Production d'un laboratoire | 3 RP/an | 3,6 RP/an |
-| Entretien global | 7 % | 5,5 % |
-| Coût d'un laboratoire | 30 M | 22 M |
-| Revenu démographique | 0,03 M/hab./an | 0,08 M/hab./an |
-| Plancher en déficit énergétique | 25 % | 35 % |
-| Rendement recherche | quasi fixe | apprentissage progressif jusqu'à +75 % |
-
-## Simulation v3 (80 ans)
-
-| Stratégie | Budget final | PR finaux | Population | Énergie | Net annuel final |
-|---|---:|---:|---:|---:|---:|
-| Prudente | 279 M | 1 414 | 40 | 100 % | 0 M |
-| Croissance | 479 M | 1 176 | 60 | 100 % | +2 M |
-| Recherche | 22 M | 2 259 | 50 | 100 % | -3 M |
-| Production | 726 M | 1 724 | 50 | 100 % | +7 M |
-| Projets | 271 M | 1 532 | 50 | 100 % | -1 M |
-
-La stratégie Recherche reste volontairement la plus tendue financièrement : son déficit
-final est positif, contre -104 M dans le modèle v2, tandis que son avance
-scientifique est claire. Les montants sont ceux de la simulation simplifiée et non une
-promesse de victoire dans l'interface complète (technologies, contrats, missions et
-sites ne sont pas simulés ici).
+La simulation de référence est volontairement simplifiée et ne reproduit pas les 15 sites, les contrats ONU ni toutes les branches de prérequis. Elle sert à comparer des trajectoires économiques sur 80 ans.

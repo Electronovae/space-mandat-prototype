@@ -50,7 +50,9 @@ const BALANCE = {
   // --- Recherche ------------------------------------------------------
   research: {
     baseRate: 6,        // RP/an produits sans aucun labo (avant bonus de techs)
-    techCostMult: 3,    // coût réel d'une techno = cost (techs.js) × cette valeur
+    techCostMult: 2.5,  // multiplicateur de départ ; le coût augmente ensuite avec l'ère et le rang
+    eraCostGrowth: 1.38, // surcharge composée par ère : la fin de l'arbre devient volontairement chère
+    rankCostGrowth: 0.18, // surcharge par rang dans une branche : aucune limite de recherche par techno
   },
 
   // --- Distance -------------------------------------------------------
@@ -135,7 +137,7 @@ const BALANCE = {
   // --- Progression des effets de technologies ------------------------
   // effet = valeur_de_base × (1 + eraStep × (ère − 1)), voir CYC ci-dessous
   techScaling: {
-    eraStep: 0.25,
+    eraStep: 0.55,
   },
 };
 

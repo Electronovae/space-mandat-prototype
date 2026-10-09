@@ -1,4 +1,4 @@
-/* Smoke test v4: exercise building and demolition without a browser. */
+/* Smoke test v5: exercise building and demolition without a browser. */
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
@@ -27,6 +27,8 @@ for (const kind of ['mine', 'lab', 'power', 'spec']) api.build(0, kind);
 const b = st.sites[0].b;
 for (const kind of ['mine', 'lab', 'power']) if (b[kind] !== 1) throw new Error(`construction échouée: ${kind}`);
 if (!st.sites[0].project || st.sites[0].project.done) throw new Error('chantier du Gros projet absent');
+if (context.__api.getState().tech.length !== 3) throw new Error('technologies de test absentes');
 api.demolish(0, 'mine');
 if (b.mine) throw new Error('destruction de la mine échouée');
-console.log('OK: mine, labo, centrale, Gros projet construits; mine détruite.');
+if (context.__api.getState().rp !== undefined && context.__api.getState().rp > 16) throw new Error('état RP inattendu');
+console.log('OK: mine, labo, centrale, Gros projet construits; mine détruite; compatibilité S vérifiée.');

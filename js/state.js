@@ -10,20 +10,27 @@
    Les tables CYC / OV / BALANCE sont dans config.js.
    --------------------------------------------------------------------- */
 const FX = {};
+/* Coût sans plafond : le rang et l'ère s'appliquent à toutes les technologies.
+   Ainsi les dernières découvertes restent accessibles, mais demandent un vrai investissement. */
+const techRank = t => parseInt(t.id.slice(1), 10);
+const techResearchCost = t => Math.round(
+  t.cost * BALANCE.research.techCostMult
+  * Math.pow(1 + BALANCE.research.rankCostGrowth, techRank(t) - 1)
+  * Math.pow(BALANCE.research.eraCostGrowth, t.era - 1) * 2
+) / 2;
 TECH.forEach(t => {
-  let effect = OV[t.id];                                   // surcharge manuelle ?
-  if (!effect) {
-    // sinon : effet du cycle de la branche, renforcé par l'ère
-    const [lever, base] = CYC[t.branch][(parseInt(t.id.slice(1)) - 1) % 4];
-    const eraMult = 1 + BALANCE.techScaling.eraStep * (t.era - 1);
-    const value = base >= 1
-      ? Math.round(base * eraMult * 2) / 2                  // arrondi à 0,5
-      : Math.round(base * eraMult * 1000) / 1000;           // arrondi à 0,001
-    effect = { [lever]: value };
-  }
+  const source = OV[t.id] || (() => {
+    const [lever, base] = CYC[t.branch][(techRank(t) - 1) % 4];
+    return { [lever]: base };
+  })();
+  // Les surcharges précises bénéficient elles aussi de la montée en puissance par ère.
+  const eraMult = 1 + BALANCE.techScaling.eraStep * (t.era - 1);
+  const effect = Object.fromEntries(Object.entries(source).map(([lever, base]) => [
+    lever, base >= 1 ? Math.round(base * eraMult * 2) / 2 : Math.round(base * eraMult * 1000) / 1000
+  ]));
   FX[t.id] = effect;
   t.effects = fxText(effect).join(' · ');
-  t.rp = t.cost * BALANCE.research.techCostMult;
+  t.rp = techResearchCost(t);
 });
 
 /* ---------------------------------------------------------------------
