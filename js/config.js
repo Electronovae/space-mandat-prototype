@@ -21,17 +21,17 @@ const BALANCE = {
   // --- Début de partie ------------------------------------------------
   start: {
     year: 2026,
-    budget: 420,        // M disponibles au départ
-    rp: 12,             // réserve de points de recherche au départ
-    confidence: 72,     // confiance de l'ONU (0–100)
+    budget: 500,        // M disponibles au départ
+    rp: 16,             // réserve de points de recherche au départ
+    confidence: 51,     // confiance de l'ONU (0–100)
   },
 
   // --- Fenêtre de démarrage (choix du joueur) --------------------------
   // Bornes et valeurs par défaut des curseurs « budget » et « horizon ».
   // L'année de fin du mandat = start.year + horizon (stockée dans state.endYear).
   setup: {
-    budget:  { min: 150, max: 1500, step: 10, def: 420 },   // M disponibles au départ
-    horizon: { min: 40,  max: 120,  step: 5,  def: 80  },   // durée du mandat en années
+    budget:  { min: 150, max: 2000, step: 50, def: 500 },   // M disponibles au départ
+    horizon: { min: 40,  max: 200,  step: 5,  def: 80  },   // durée du mandat en années
   },
 
   // --- Contrats de l'ONU (tirés au hasard dans CONTRACT_POOL) ----------
