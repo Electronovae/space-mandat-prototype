@@ -20,9 +20,11 @@ document.querySelectorAll('.nav button').forEach(btn => {
 
 /* Boutons de l'en-tête */
 $('nextYear').onclick = nextYear;
+document.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.tagName !== 'INPUT') nextYear(); });
 $('save').onclick = save;
 $('load').onclick = load;
 $('newGame').onclick = openSetup;
+$('help').onclick = () => { $('tutorial').style.display = 'flex'; };
 
 /* Fenêtre de démarrage (budget + horizon) */
 $('setupBudget').oninput = updateSetup;

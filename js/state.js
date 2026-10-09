@@ -46,7 +46,7 @@ function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizo
     budget,
     rp: S.rp,
     confidence: S.confidence,
-    sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null })),
+    sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null, project: null })),
     tech: [],
     contracts: [],
   };

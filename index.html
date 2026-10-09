@@ -19,13 +19,13 @@
   <!-- ============================ BARRE LATÉRALE ============================ -->
   <aside class="sidebar">
     <div>
-      <div class="eyebrow">UN / programme 07</div>
+      <div class="eyebrow">ONU / programme 07</div>
       <div class="brand">SPACE<span>MANDAT</span></div>
     </div>
     <nav class="nav">
       <button class="active" data-view="command">◈ &nbsp; Centre de commandement</button>
       <button data-view="operations">⌁ &nbsp; Opérations</button>
-      <button data-view="contracts">⊙ &nbsp; Contrats UN</button>
+      <button data-view="contracts">⊙ &nbsp; Contrats ONU</button>
       <button data-view="tech">⌘ &nbsp; Arbre technologique</button>
     </nav>
     <div class="side-foot">
@@ -48,7 +48,7 @@
         <button class="btn" id="newGame">⟲ Nouvelle partie</button>
         <button class="btn" id="save">↓ Sauvegarder</button>
         <button class="btn" id="load">↑ Charger</button>
-        <button class="btn primary" id="nextYear">Avancer d’un an&nbsp; →</button>
+        <button class="btn" id="help" title="Rouvrir le tutoriel">? Aide</button>
       </div>
     </header>
 
@@ -59,14 +59,14 @@
         <div class="val" id="budget">—</div>
         <div class="hint" id="budgetHint">+0M / an</div>
       </div>
-      <!-- Recherche : valeur principale = réserve de points, indice = production par tour -->
+      <!-- Recherche : valeur principale = réserve de points, indice = production par an -->
       <div class="metric">
         <div class="label">Points de recherche</div>
         <div class="val" id="research">—</div>
-        <div class="hint" id="researchHint">+0 points / tour</div>
+        <div class="hint" id="researchHint">+0 points / an</div>
       </div>
       <div class="metric">
-        <div class="label">Confiance UN</div>
+        <div class="label">Confiance de l’ONU</div>
         <div class="val" id="confidence">—</div>
         <div class="hint">mandat public</div>
       </div>
@@ -77,9 +77,14 @@
       </div>
     </section>
 
+    <div class="turn-dock" role="region" aria-label="Contrôle du temps">
+      <div><span class="eyebrow">CYCLE DU MANDAT</span><strong>Prêt pour l’année suivante</strong><small>Raccourci : touche N</small></div>
+      <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
+    </div>
+
     <!-- ============================ VUE : CENTRE DE COMMANDEMENT ============================ -->
     <div id="command" class="view active">
-      <div class="notice">★ <b>Briefing 2026.</b> La fenêtre lunaire est ouverte. Lancez une mission depuis Opérations, puis développez des bâtiments pour créer vos revenus et votre recherche.</div>
+      <div class="notice">★ <b>Briefing 2026.</b> <button class="btn" onclick="$('tutorial').style.display='flex'" style="float:right;padding:4px 8px">Aide</button> La fenêtre lunaire est ouverte. Installez une colonie depuis Opérations, puis développez des bâtiments pour créer vos revenus et votre recherche.</div>
       <div class="grid">
 
         <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
@@ -88,10 +93,10 @@
           <div class="map-sys">
             <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
             <div id="mapSites"></div>
-            <div class="legend"><i></i> distance relative · cliquer Opérations pour agir</div>
+            <div class="legend"><i></i> indice de distance (plus grand = plus éloigné) · ouvrir Opérations pour agir</div>
           </div>
           <div class="map-ext">
-            <div class="map-ext-title">HORS SYSTÈME · fin de partie</div>
+            <div class="map-ext-title">AU-DELÀ DU SYSTÈME · fin de partie</div>
             <div class="map-ext-row" id="mapExo"></div>
           </div>
         </div>
@@ -102,7 +107,7 @@
             <div class="mission-list" id="activity"></div>
           </div>
           <div class="card" style="margin-top:14px">
-            <h3>Bilan du dernier tour</h3>
+            <h3>Bilan de l’année</h3>
             <div class="bilan" id="bilan">
               <div><span>Revenus</span><b>—</b></div>
               <div><span>Dépenses</span><b>—</b></div>
@@ -118,7 +123,7 @@
     <!-- ============================ VUE : OPÉRATIONS ============================ -->
     <div id="operations" class="view">
       <div class="section-head">
-        <div><h2>Opérations de colonisation</h2><p>Chaque décision engage le budget, le temps et la confiance internationale.</p></div>
+        <div><h2>Opérations de colonisation</h2><p>Chaque installation engage le budget, le temps et la confiance internationale.</p></div>
         <span class="tag">COÛTS EN MILLIONS</span>
       </div>
       <div class="ops-grid" id="ops"></div>
@@ -127,8 +132,8 @@
     <!-- ============================ VUE : CONTRATS ============================ -->
     <div id="contracts" class="view">
       <div class="section-head">
-        <div><h2>Contrats UN</h2><p>Des objectifs publics, tirés au hasard à chaque partie, qui structurent le mandat.</p></div>
-        <span class="tag orange">SUIVI AUTOMATIQUE</span>
+        <div><h2>Contrats ONU</h2><p>Des objectifs publics, tirés au hasard à chaque partie, qui structurent le mandat.</p></div>
+        <span class="tag orange">ÉVALUATION ANNUELLE</span>
       </div>
       <div class="contracts" id="contractsList"></div>
     </div>
@@ -151,6 +156,7 @@
   </main>
 </div>
 
+<!-- Le tutoriel reste rouvrable via Aide dans l’en-tête ou le briefing. -->
 <!-- Notification temporaire -->
 <div class="toast" id="toast"></div>
 
@@ -159,7 +165,7 @@
   <div class="card setup">
     <div class="eyebrow">BRIEFING DE MANDAT · ONU</div>
     <h2 style="margin:8px 0 10px">Paramètres du mandat</h2>
-    <p class="muted">Choisissez l’enveloppe initiale et la durée de votre mandat. Cinq contrats UN seront tirés au hasard au départ, d’autres suivront.</p>
+    <p class="muted">Choisissez l’enveloppe initiale et la durée de votre mandat. Cinq contrats ONU seront tirés au hasard au départ, d’autres suivront.</p>
 
     <div class="field">
       <label for="setupBudget">Budget initial <b id="setupBudgetVal"></b></label>
@@ -194,11 +200,11 @@
     <button class="close" onclick="closeTutorial()">×</button>
     <div class="eyebrow">PROTOCOLE D’INITIATION</div>
     <h2 style="margin:8px 0 16px">Bienvenue dans SpaceMandat</h2>
-    <p>Vous dirigez le programme spatial civil de 2026 à 2106. Votre mandat : coloniser les sites clés sans perdre la confiance de l’UN.</p>
+    <p>Vous dirigez le programme spatial civil de 2026 à 2106. Votre mandat : installer des colonies, les développer et préserver la confiance de l’ONU.</p>
     <ul>
       <li><b style="color:var(--ink)">Missions :</b> une mission consomme un budget de base multiplié par la distance du site et arrive après plusieurs années. Le risque baisse avec la recherche.</li>
-      <li><b style="color:var(--ink)">Bâtiments :</b> chaque astre a ses propres bâtiments (logement, serre, labo, mine, énergie + un bâtiment spécial). Coût et rendement augmentent avec la distance, mais le rendement plus vite que le coût : les astres lointains sont plus rentables. La population fournit l’équipage (effectif), les emplacements et des revenus.</li>
-      <li><b style="color:var(--ink)">Technologies :</b> chaque branche agit sur un levier précis (énergie → centrales et mines, propulsion → coût et durée des missions, matériaux → coût des bâtiments, vie → population, information → recherche, sociétés → confiance et budget). Aucune branche n’est facultative : chaque astre demande des technologies de plusieurs branches (propulsion pour le trajet, mais aussi énergie, matériaux, vie, information, sociétés), et laboratoires et mines sont eux-mêmes verrouillés par une technologie.</li>
+      <li><b style="color:var(--ink)">Bâtiments :</b> après l’installation d’une colonie, construisez logements, serres, laboratoires, mines, centrales et un Gros projet propre à l’astre. Les centrales produisent de l’énergie ; laboratoires, mines, serres, habitants et chantiers en consomment. En déficit, la production est réduite (minimum 35 %) jusqu’à construire une centrale. Un Gros projet coûte cher, dure 5 ans et doit avoir un bilan énergétique couvert. Les habitants fournissent l’effectif et ouvrent des emplacements. Les serres produisent les rations nécessaires à la capacité d’accueil.</li>
+
       <li><b style="color:var(--ink)">Contrats :</b> à chaque partie, l’ONU tire au hasard une série d’objectifs, puis en propose de nouveaux au fil des années. Chaque contrat récompense en confiance, en trésorerie ou en points de recherche (tiré au hasard) ; un échec réduit toujours la confiance.</li>
       <li><b style="color:var(--ink)">Hors système :</b> en fin de partie, les technologies de propulsion les plus avancées ouvrent des missions interstellaires vers cinq exoplanètes. Très chères et très longues, mais très rentables.</li>
       <li><b style="color:var(--ink)">Bilan :</b> utilisez « Avancer d’un an » pour percevoir les revenus, payer les dépenses et faire progresser les missions.</li>

@@ -54,7 +54,7 @@ function siteCalc(i) {
   const B  = BALANCE;
 
   if (!s.colonized) {
-    return { pop:0, cap:0, slots:0, used:0, staff:1, bud:0, res:0, upk:0, conf:0 };
+    return { pop:0, cap:0, slots:0, used:0, staff:1, bud:0, res:0, upk:0, conf:0, energyProduced:0, energyRequired:0, energyRatio:1, project:null };
   }
 
   // Capacité d'accueil et nourriture → la plus faible des deux limite la population
@@ -74,7 +74,12 @@ function siteCalc(i) {
     : 1;
 
   // Bonus de production des centrales
-  const energy = 1 + n('power') * B.economy.powerBonus * (1 + M.power) * sp('power');
+  const energyProduced = n('power') * B.economy.energy.powerPerCentral * sp('power');
+  const energyRequired = n('lab') * B.economy.energy.labUse + n('mine') * B.economy.energy.mineUse
+    + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse
+    + (s.project && !s.project.done ? B.economy.energy.projectUse : 0);
+  const energyRatio = energyRequired > 0 ? Math.max(B.economy.energy.deficitFloor, Math.min(1, energyProduced / energyRequired)) : 1;
+  const energy = energyRatio * (1 + n('power') * B.economy.powerBonus * (1 + M.power) * sp('power'));
 
   // Revenus : mines + spécial (budget), × distance × effectif × énergie, + impôt par habitant
   const bud = (n('mine') * B.economy.mineIncome * sp('mine') * (1 + M.mine)
@@ -92,9 +97,11 @@ function siteCalc(i) {
     pop: s.pop,
     cap: Math.round(Math.min(cap, food)),
     slots: B.colony.baseSlots + Math.floor(s.pop / B.colony.popPerSlot),
-    used: Object.values(s.b).reduce((a, b) => a + b, 0),
+    used: Object.values(s.b).reduce((a, b) => a + b, 0) + (s.project && !s.project.done ? 1 : 0),
     staff, bud, res, upk,
     conf: n('spec') * (x.conf || 0),
+    energyProduced, energyRequired, energyRatio,
+    project: s.project,
   };
 }
 
@@ -131,7 +138,7 @@ const duration = i => Math.max(1, Math.round(SITES[i].w * (1 - getModifiers().tr
 
 // Bâtiment : coût de base × distance × (1 − bonus build) × (1 + 12 % par exemplaire déjà construit)
 const bCost = (i, a) =>
-  a.c * SITES[i].d * (1 - getModifiers().build)
+  (a.project ? a.c * 4 : a.c) * SITES[i].d * (1 - getModifiers().build)
   * (1 + BALANCE.costs.buildGrowth * (state.sites[i].b[a.k] || 0));
 
 /* ---------------------------------------------------------------------

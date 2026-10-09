@@ -100,10 +100,15 @@ const BALANCE = {
   // --- Économie -------------------------------------------------------
   economy: {
     mineIncome: 3,      // M/an par mine (× spéc × F × effectif × énergie)
-    labOutput: 3,       // RP/an par labo (× spéc × F × effectif × énergie)
-    popTax: 0.03,       // M/an par habitant (non multiplié par F)
-    powerBonus: 0.15,   // +15 % de production du site par centrale (× spéc × (1+bonus power))
-    upkeepRate: 0.07,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 7 %
+    labOutput: 3.6,       // RP/an par labo (× spéc × F × effectif × énergie)
+    popTax: 0.08,       // M/an par habitant (non multiplié par F)
+    powerBonus: 0.15,   // bonus de production par centrale, après bilan énergétique
+    energy: {
+      powerPerCentral: 12,  // unités d'énergie produites/an par centrale
+      labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1, projectUse: 4,
+      deficitFloor: 0.35,  // une colonie déficitaire conserve au moins 25 % de sa production
+    },
+    upkeepRate: 0.055,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 7 %
     deficitConfPenalty: 2, // perte de confiance si le budget passe sous 0 (le budget est remis à 0)
   },
 
@@ -146,15 +151,15 @@ const BALANCE = {
      req    technologies requises pour lancer la mission : liste d'ids, idéalement de PLUSIEURS
             branches (propulsion pour le trajet, mais aussi énergie, matériaux, vie, information,
             sociétés). null ou [] = aucune. Le panneau « Prérequis » de chaque astre les affiche.
-     st     techno requise pour construire le bâtiment spécial
+     st     techno requise pour construire le Gros projet
      sp     spécialités : multiplicateurs par type de bâtiment
             (clés : hab, farm, lab, mine, power)
      tag    texte de présentation
      nm     noms des 6 bâtiments, dans l'ordre de ARCH :
             [logement, serre, labo, mine, énergie, spécial]
-     exo    true = planète hors système solaire (fin de partie, carte « hors système »)
+     exo    true = planète hors système solaire (fin de partie, carte « au-delà du système »)
      ly     distance en années-lumière (affichage seulement, pour les exo)
-     x      effets du bâtiment spécial (par exemplaire, max 3) :
+     x      effets du Gros projet (par exemplaire achevé, max 3) :
               budget    M/an  (× F × effectif × énergie)
               research  RP/an (× F × effectif × énergie)
               cap       habitants max
@@ -184,8 +189,8 @@ const SITES = [
   { n:'Triton',   label:'TRITON',   d:6.2, c:180, w:17, req:['P07','E06','M06','I05','S05'], st:'I04', sp:{lab:1.3},             tag:'Avant-poste profond · prestige',
     nm:['Cellule cryogénique','Serre isolée','Labo de plasma','Mine d’azote','Réacteur autonome','Relais profond'], x:{research:4, conf:0.6} },
 
-  { n:'L1 Terre', label:'L1',       d:1.1, c:24,  w:1,  req:null,  st:'M02', sp:{power:1.4},           tag:'Transit · énergie +40 %',
-    nm:['Anneau habité','Serre orbitale','Labo en microgravité','Atelier d’astéroïdes','Panneaux solaires','Station de transit'], x:{launch:0.05} },
+  { n:'LAGRANGE 1', label:'LAGRANGE 1',       d:1.1, c:24,  w:1,  req:null,  st:'M02', sp:{power:1.4},           tag:'Transit · énergie +40 %',
+    nm:['Anneau habité','Serre orbitale','Labo en microgravité','Mine d’astéroïdes','Panneaux solaires','Station de transit'], x:{launch:0.05} },
 
   { n:'Phobos',   label:'PHOBOS',   d:1.9, c:60,  w:6,  req:['P02','M02','I01'], st:'M03', sp:{mine:1.2},            tag:'Chantier · bâtiments moins chers',
     nm:['Hangar pressurisé','Serre blindée','Labo de bord','Carrière de régolithe','Collecteur solaire','Chantier orbital'], x:{build:0.05} },
@@ -229,10 +234,10 @@ const SITES = [
 const ARCH = [
   { k:'hab',   ic:'⌂', c:20 },                   // logement : capacité d'accueil
   { k:'farm',  ic:'♧', c:18, tech:'V01' },       // serre : nourriture + un peu de capacité
-  { k:'lab',   ic:'⚗', c:30, tech:'I01' },       // labo : recherche (Automatisation industrielle)
+  { k:'lab',   ic:'⚗', c:22, tech:'I01' },       // labo : recherche (Automatisation industrielle)
   { k:'mine',  ic:'⛏', c:25, tech:'M01' },       // mine : budget (ISRU lunaire)
   { k:'power', ic:'⚡', c:28, tech:'E01' },       // énergie : bonus % de production du site
-  { k:'spec',  ic:'✦', c:50, max:3 },            // spécial : effet propre à chaque astre (SITES[i].x)
+  { k:'spec',  ic:'✦', c:180, max:3, project:true },  // Gros projet : coût élevé, chantier pluriannuel
 ];
 
 
@@ -369,7 +374,7 @@ const CONTRACT_POOL = [
   cNum('col8',  'Atteindre 8 colonies',   60, 28, nColonies, 8,  'colonies', { after: 20 }),
   cNum('col12', 'Atteindre 12 colonies',  70, 32, nColonies, 12, 'colonies', { after: 30 }),
 
-  // --- Fin de partie : hors système ---
+  // --- Fin de partie : au-delà du système ---
   cNum('exo1', 'Premier monde hors du système solaire', 45, 30, nExoWorlds, 1, 'monde', { after: 35 }),
   cNum('exo2', 'Deux mondes hors du système solaire',   45, 35, nExoWorlds, 2, 'mondes', { after: 45 }),
 
@@ -405,7 +410,7 @@ const CONTRACT_POOL = [
   // --- Bâtiments ---
   cNum('b10',  'Construire 10 bâtiments au total', 25, 8,  nBuildings, 10, 'bâtiments'),
   cNum('b30',  'Construire 30 bâtiments au total', 45, 16, nBuildings, 30, 'bâtiments', { after: 10 }),
-  cNum('spec', 'Construire un bâtiment spécial',   25, 10, nSpecials,  1,  'bâtiment'),
+  cNum('spec', 'Construire un Gros projet',   25, 10, nSpecials,  1,  'bâtiment'),
 ];
 
 const CONTRACT_BY_ID = Object.fromEntries(CONTRACT_POOL.map(c => [c.id, c]));

@@ -1,50 +1,48 @@
 # Guide d'équilibrage
 
-Tout est commenté dans `js/config.js`. Résumé : **quoi modifier pour quel effet**.
+Les constantes principales sont dans `js/config.js`. La simulation reproductible est
+`node scripts/simulate.js` et compare cinq stratégies simplifiées sur 80 ans.
 
-| Je veux…                                   | Je modifie (dans `js/config.js`)                          |
-|--------------------------------------------|-----------------------------------------------------------|
-| Bornes / défaut du budget et de l'horizon  | `BALANCE.setup.budget` · `BALANCE.setup.horizon`          |
-| Accélérer la recherche globale             | `BALANCE.research.baseRate`, `BALANCE.economy.labOutput`  |
-| Rendre les technos plus chères             | `BALANCE.research.techCostMult` (ou `cost` dans techs.js) |
-| Favoriser les astres lointains             | `BALANCE.distance.exponent` (plus haut = plus rentables)  |
-| Rendre une mission plus chère / plus longue| `SITES[i].c` (coût) · `SITES[i].w` (durée)                |
-| Changer la spécialité d'un astre           | `SITES[i].sp` et `SITES[i].x`                             |
-| Changer le coût d'un type de bâtiment      | `ARCH[...].c`                                             |
-| Freiner l'enchaînement de bâtiments        | `BALANCE.costs.buildGrowth`                               |
-| Ajuster l'entretien                        | `BALANCE.economy.upkeepRate`                              |
-| Croissance / capacité de population        | `BALANCE.population.*`                                    |
-| Besoin en équipage                         | `BALANCE.staffing.*`                                      |
-| Nombre d'emplacements de bâtiments         | `BALANCE.colony.baseSlots`, `popPerSlot`                  |
-| Érosion de la confiance                    | `BALANCE.confidence.drift`                                |
-| Changer l'effet d'UNE technologie          | `OV` (surcharge par id)                                   |
-| Changer l'effet d'UNE branche entière      | `CYC` (cycle de 4 effets par branche)                     |
-| Faire grimper l'effet des techs avec l'ère | `BALANCE.techScaling.eraStep`                             |
-| Plafonner les bonus de réduction de coût   | `BALANCE.caps`                                            |
-| Modifier / ajouter un contrat de l'ONU     | `CONTRACT_POOL` (utiliser `cSite` ou `cNum`)              |
-| Nombre de contrats au départ / rythme      | `BALANCE.contracts.*`                                     |
-| Rendre une exoplanète plus / moins accessible | `SITES[i]` (`exo:true`) : `d`, `c`, `w`, `req`         |
-| Changer les technologies requises pour un astre | `SITES[i].req` (liste d'ids, plusieurs branches)        |
-| Verrouiller labos / mines par une techno   | `ARCH[...].tech`                                          |
-| Type et montant des récompenses de contrat | `BALANCE.contracts.rewardWeights` · `rewardValue` · `rewardGrowth` |
+## Choix v3
 
-## Points d'attention
+- **Recherche sans plafond artificiel** : le rendement des laboratoires suit une courbe
+d'apprentissage progressive (`+1,2 %/an`, plafonnée à +75 % pour rester raisonnable),
+au lieu de rester sur une production quasi linéaire qui aboutissait à 496 PR.
+- **Recherche viable** : rendement d'un laboratoire porté à 3,6 RP/an, entretien réduit à
+6 % dans la simulation et 5,5 % dans le jeu, coût de construction d'un labo réduit à 22 M,
+et revenu démographique porté à 0,08 M/habitant/an. La stratégie reste spécialisée et
+coûteuse, mais ne termine plus automatiquement à -104 M.
+- **Énergie pertinente mais non piégeuse** : le plancher de production déficitaire passe de
+25 % à 35 %. La stratégie `prudente` retarde ses centrales pendant les premières années,
+puis couvre progressivement sa consommation ; elle commence à 35 % et atteint 100 % au
+lieu de rester bloquée à 25 %.
+- **Stratégies différenciées** : `croissance` privilégie les serres et la population,
+`production` les mines, `recherche` les laboratoires, `projets` un Gros projet, et `prudente`
+un investissement énergétique décalé.
 
-- **Contrats « à maintenir »** (`hold:true`) : échec dès que la condition est rompue, réussite à l'échéance
-  (l'ancien contrat « 65 % jusqu'en 2070 » était validé dès le premier tour).
-- **Contrats tirés au hasard** : un contrat déjà rempli au moment du tirage est écarté ; `after` retarde
-  l'apparition des contrats ambitieux ; l'échéance doit tenir dans l'horizon choisi.
-- **Toutes les branches sont indispensables** : chaque astre exige des technologies de plusieurs branches
-  (`SITES[i].req`, voir le panneau « Prérequis » des cartes Opérations ; un clic ouvre la techno).
-  Coût cumulé en RP pour débloquer (avec `techCostMult` = 3) : Phobos ~50, Mars ~80, Cérès/Vesta ~160,
-  Europe ~320, Titan ~490, Triton ~600, Proxima b ~1 350, Barnard b ~1 800, Teegarden b ~2 200,
-  Gliese 667 Cc ~2 800, TRAPPIST-1 e ~3 400. Labos et mines demandent aussi une techno (I01, M01).
-  Si ces rythmes sont trop lents ou trop rapides : `BALANCE.research.baseRate` / `techCostMult`.
-- **Récompenses de contrat** : le type (confiance 40 %, trésorerie 30 %, recherche 30 %) est tiré à la
-  proposition. Trésorerie = `reward` × 12 M, recherche = `reward` × 1,6 RP, tous deux +2,5 %/an de mandat.
-  L'échec coûte toujours de la confiance.
-- **Exoplanètes** : distance ×11 à ×26 → missions à ~1 400–5 700 M (avant bonus) et rendement ×29 à ×97.
-  Sur l'horizon standard (80 ans) elles restent un défi ; elles se visent plutôt avec 100 ans ou plus.
-- Les valeurs affichées (`unitTxt` dans `ui.js`) sont recalculées depuis `BALANCE` : pas besoin de les modifier à la main.
-- Après un changement de structure de l'état, l'ancienne sauvegarde peut devenir incompatible : changer `SAVE_KEY` dans `actions.js` (déjà passé à `spacemandat-save3`).
-- Pour tester vite : dans la console du navigateur, `state.budget = 99999` puis `render()`.
+## Paramètres de référence
+
+| Paramètre | v2 | v3 |
+|---|---:|---:|
+| Production d'un laboratoire | 3 RP/an | 3,6 RP/an |
+| Entretien global | 7 % | 5,5 % |
+| Coût d'un laboratoire | 30 M | 22 M |
+| Revenu démographique | 0,03 M/hab./an | 0,08 M/hab./an |
+| Plancher en déficit énergétique | 25 % | 35 % |
+| Rendement recherche | quasi fixe | apprentissage progressif jusqu'à +75 % |
+
+## Simulation v3 (80 ans)
+
+| Stratégie | Budget final | PR finaux | Population | Énergie | Net annuel final |
+|---|---:|---:|---:|---:|---:|
+| Prudente | 279 M | 1 414 | 40 | 100 % | 0 M |
+| Croissance | 479 M | 1 176 | 60 | 100 % | +2 M |
+| Recherche | 22 M | 2 259 | 50 | 100 % | -3 M |
+| Production | 726 M | 1 724 | 50 | 100 % | +7 M |
+| Projets | 271 M | 1 532 | 50 | 100 % | -1 M |
+
+La stratégie Recherche reste volontairement la plus tendue financièrement : son déficit
+final est positif, contre -104 M dans le modèle v2, tandis que son avance
+scientifique est claire. Les montants sont ceux de la simulation simplifiée et non une
+promesse de victoire dans l'interface complète (technologies, contrats, missions et
+sites ne sont pas simulés ici).

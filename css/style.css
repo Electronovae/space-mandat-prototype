@@ -123,6 +123,17 @@ h1,h2,h3,.brand {
   display: flex;
   gap: 8px;
 }
+
+.turn-dock {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  margin: 0 0 18px; padding: 12px 16px;
+  border: 1px solid var(--line); border-left: 3px solid var(--lime);
+  background: linear-gradient(90deg, rgba(201,242,119,.09), rgba(18,35,31,.72));
+  border-radius: 6px; position: sticky; top: 12px; z-index: 5;
+}
+.turn-dock strong { display:block; color:var(--ink); margin-top:3px; font-size:13px; }
+.turn-dock small { color:var(--muted); font-size:10px; }
+.turn-btn { min-width: 190px; font-size: 13px; padding: 12px 16px; }
 .btn {
   padding: 10px 14px;
   border: 1px solid var(--line);
@@ -142,6 +153,7 @@ h1,h2,h3,.brand {
   border-color: var(--lime);
   font-weight: 500;
 }
+.btn.danger { background:#351d24; border-color:#8b4350; color:#ff9ba6; }
 .btn.warning {
   background: #3c281c;
   border-color: #83573b;
@@ -651,6 +663,8 @@ h1,h2,h3,.brand {
   .actions {
     width: 100%;
   }
+  .turn-dock { align-items: stretch; flex-direction: column; top: 8px; }
+  .turn-btn { width: 100%; }
 }
 .tech {
   display: block;

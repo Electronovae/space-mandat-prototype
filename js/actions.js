@@ -12,7 +12,7 @@ function newGame(budget, horizon) {
   for (let k = 0; k < BALANCE.contracts.initial; k++) drawContract(state);
   treeSel = null;
   render();
-  toast('Mandat ' + state.startYear + '–' + state.endYear + ' · ' + state.contracts.length + ' contrats UN tirés.');
+  toast('Mandat ' + state.startYear + '–' + state.endYear + ' · ' + state.contracts.length + ' contrats ONU tirés.');
 }
 
 /* Lancer une mission de colonisation vers le site i */
@@ -37,13 +37,32 @@ function build(i, k) {
   const techId = k === 'spec' ? SITES[i].st : a.tech;      // techno requise éventuelle
 
   if (!s.colonized) return;
+  if (k === 'spec' && s.project && !s.project.done) { toast('Un Gros projet est déjà en chantier.'); return; }
+  if (k === 'spec' && s.b.spec >= a.max) { toast('Nombre maximal de Gros projets atteint.'); return; }
   if (techId && !has(techId)) { toast('Technologie requise : ' + tname(techId)); return; }
   if (c.used >= c.slots)      { toast('Site plein : augmentez la population.'); return; }
   if (state.budget < cost)    { toast('Budget insuffisant pour ce bâtiment.'); return; }
 
   state.budget -= cost;
-  s.b[k] = (s.b[k] || 0) + 1;
-  toast(SITES[i].nm[ARCH.indexOf(a)] + ' construit · ' + SITES[i].n);
+  if (a.project) {
+    s.project = { done: false, progress: 0, duration: 5, name: S.nm[ARCH.indexOf(a)] };
+    toast('Gros projet lancé sur ' + S.n + ' · chantier de 5 ans.');
+  } else {
+    s.b[k] = (s.b[k] || 0) + 1;
+    toast(S.nm[ARCH.indexOf(a)] + ' construit · ' + S.n);
+  }
+  render();
+}
+
+
+/* Détruire un bâtiment : libère un emplacement sans remboursement. */
+function demolish(i, k) {
+  const s = state.sites[i];
+  if (!s || !s.colonized || !(s.b[k] > 0)) return;
+  const a = ARCH.find(x => x.k === k);
+  s.b[k]--;
+  if (!s.b[k]) delete s.b[k];
+  toast((a ? SITES[i].nm[ARCH.indexOf(a)] : 'Bâtiment') + ' détruit · emplacement libéré.');
   render();
 }
 
@@ -61,7 +80,7 @@ function researchTech(id) {
 }
 
 /* ---------------------------------------------------------------------
-   Passage d'une année (= un « tour »)
+   Passage d'une année (= une année)
    Ordre des opérations :
      1. revenus − entretien   (déficit → budget remis à 0 et perte de confiance)
      2. + recherche
@@ -82,11 +101,25 @@ function nextYear() {
   if (state.budget < 0) {
     state.budget = 0;
     state.confidence -= BALANCE.economy.deficitConfPenalty;
-    toast('Déficit : la confiance de l’UN baisse.');
+    toast('Déficit : la confiance de l’ONU baisse.');
   }
 
   // 2. Recherche
   state.rp += T.res;
+
+  // Chantier des Gros projets : 5 années, achevé seulement si le bilan énergétique est suffisant.
+  state.sites.forEach((s, i) => {
+    if (!s.colonized || !s.project || s.project.done) return;
+    const energy = siteCalc(i).energyRatio;
+    if (energy < 1) return;
+    s.project.progress++;
+    if (s.project.progress >= s.project.duration) {
+      s.project.done = true;
+      s.b.spec = (s.b.spec || 0) + 1;
+      s.project = null;
+      toast('Gros projet achevé : ' + SITES[i].n);
+    }
+  });
 
   // 3. Population : décroît vers la capacité si dépassée, sinon croît
   state.sites.forEach((s, i) => {
@@ -140,7 +173,7 @@ function nextYear() {
   const active = state.contracts.filter(c => !c.done && !c.failed).length;
   if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive) {
     const c = drawContract(state);
-    if (c) toast('Nouveau contrat UN : ' + CONTRACT_BY_ID[c.id].name);
+    if (c) toast('Nouveau contrat ONU : ' + CONTRACT_BY_ID[c.id].name);
   }
 
   // 7. Bilan du tour
@@ -159,28 +192,7 @@ function save() {
 function load() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) { toast('Aucune sauvegarde (les anciennes ne sont plus compatibles).'); return false; }
-
-  // Une sauvegarde locale peut être tronquée ou provenir d'une version incompatible.
-  // Ne jamais laisser JSON.parse (ou un état partiel) faire planter l'interface.
-  let candidate;
-  try {
-    candidate = JSON.parse(raw);
-  } catch (err) {
-    toast('Sauvegarde illisible : lancez une nouvelle partie.');
-    return false;
-  }
-  const valid = candidate && Number.isFinite(candidate.year)
-    && Number.isFinite(candidate.endYear)
-    && Array.isArray(candidate.sites)
-    && candidate.sites.length === SITES.length
-    && Array.isArray(candidate.tech)
-    && Array.isArray(candidate.contracts);
-  if (!valid) {
-    toast('Sauvegarde incompatible : lancez une nouvelle partie.');
-    return false;
-  }
-
-  state = candidate;
+  state = JSON.parse(raw);
   render();
   toast('Sauvegarde chargée.');
   return true;

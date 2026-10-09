@@ -22,9 +22,9 @@ function render() {
   $('budgetHint').textContent = (net >= 0 ? '+' : '') + R(net, 1) + 'M / an (net)';
 
   // Recherche : la valeur principale est la RÉSERVE de points,
-  // la production par tour est affichée en dessous.
+  // la production par an est affichée en dessous.
   $('research').textContent = R(state.rp, 1);
-  $('researchHint').textContent = '+' + R(T.res, 1) + ' points / tour';
+  $('researchHint').textContent = '+' + R(T.res, 1) + ' points / an';
 
   $('confidence').textContent = Math.round(state.confidence) + '%';
   $('year').textContent = state.year;
@@ -44,10 +44,11 @@ function render() {
 
 /* Carte du système solaire : un astre par entrée de SITES (hors exo).
    Les positions viennent des classes CSS .s1 … .s10 (css/style.css).
-   Les exoplanètes (SITES[i].exo) sont affichées dans la bande « hors système »
+   Les exoplanètes (SITES[i].exo) sont affichées dans la bande « au-delà du système »
    sous la carte ; leur état (verrouillée / en vol / colonisée) est mis à jour à chaque render(). */
 function renderMap() {
-  const inSystem = SITES.map((S, i) => [S, i]).filter(([S]) => !S.exo);
+  const inSystem = SITES.map((S, i) => [S, i]).filter(([S]) => !S.exo)
+    .sort(([a], [b]) => (a.n === 'LAGRANGE 1' ? -1 : b.n === 'LAGRANGE 1' ? 1 : 0));
   const outside  = SITES.map((S, i) => [S, i]).filter(([S]) => S.exo);
 
   $('mapSites').innerHTML = inSystem.map(([S, i], k) =>
@@ -94,7 +95,7 @@ function renderActivity() {
   }).join('');
 }
 
-/* Bilan du dernier tour (appelé par nextYear) */
+/* Bilan de l’année (appelé par nextYear) */
 function renderBilan({ T, pop0, pop1, conf0 }) {
   const net = T.bud - T.upk;
   const dConf = state.confidence - conf0;
@@ -120,14 +121,14 @@ function unitTxt(i, a, M) {
     case 'hab':
       return `+${Math.round(B.population.habCap * sp('hab') * (1 + M.cap))} habitants max`;
     case 'farm':
-      return `+${Math.round(B.population.farmFood * sp('farm') * (1 + M.food))} rations · +${B.population.farmCap} habitants`;
+      return `+${Math.round(B.population.farmFood * sp('farm') * (1 + M.food))} rations/an · +${B.population.farmCap} capacité d’accueil`;
     case 'lab':
       return `+${R(B.economy.labOutput * sp('lab') * (1 + M.lab) * F, 1)} RP/an · ${B.staffing.perProducer} équipiers`;
     case 'mine':
       return `+${R(B.economy.mineIncome * sp('mine') * (1 + M.mine) * F, 1)}M/an · ${B.staffing.perProducer} équipiers`;
     case 'power':
-      return `+${Math.round(B.economy.powerBonus * 100 * (1 + M.power) * sp('power'))} % de production du site`;
-    default: {                                   // bâtiment spécial
+      return `+${B.economy.energy.powerPerCentral * sp('power')} unités d'énergie/an · bonus ${Math.round(B.economy.powerBonus * 100 * (1 + M.power) * sp('power'))} % si bilan positif`;
+    default: {                                   // Gros projet
       const x = S.x, parts = [];
       if (x.budget)   parts.push(`+${R(x.budget * F, 0)}M/an`);
       if (x.research) parts.push(`+${R(x.research * F, 0)} RP/an`);
@@ -135,7 +136,7 @@ function unitTxt(i, a, M) {
       if (x.conf)     parts.push(`+${x.conf} confiance/an`);
       if (x.launch)   parts.push(`−${pc(x.launch)} coût des missions (tous sites)`);
       if (x.build)    parts.push(`−${pc(x.build)} coût des bâtiments (tous sites)`);
-      return parts.join(' · ');
+      return parts.length ? parts.join(' · ') + ' · gain majeur après chantier' : 'Gain majeur après chantier';
     }
   }
 }
@@ -146,16 +147,21 @@ function buildRow(i, a, j, M, c) {
   const n = s.b[a.k] || 0;
   const techId = a.k === 'spec' ? S.st : a.tech;
   const locked = techId && !has(techId);
+  const projectRunning = a.project && s.project && !s.project.done;
+  const projectDone = a.project && s.b.spec >= (a.max || 99);
   const full = c.used >= c.slots;
   const maxed = a.max && n >= a.max;
 
   let btn;
-  if (locked)      btn = `<button class="btn" disabled title="${tname(techId)}">Requiert ${techId}</button>`;
+  if (projectRunning) btn = `<button class="btn" disabled>Chantier · ${s.project.progress}/${s.project.duration} ans</button>`;
+  else if (projectDone) btn = `<button class="btn" disabled>Maximum</button>`;
+  else if (locked)      btn = `<button class="btn" disabled title="${tname(techId)}">Requiert ${techId}</button>`;
   else if (maxed)  btn = `<button class="btn" disabled>Maximum</button>`;
   else if (full)   btn = `<button class="btn" disabled title="Plus d’habitants = plus d’emplacements">Site plein</button>`;
-  else             btn = `<button class="btn" onclick="build(${i},'${a.k}')">Construire · ${money(bCost(i, a))}</button>`;
+  else             btn = `<button class="btn" onclick="build(${i},'${a.k}')">Construire le bâtiment · ${money(bCost(i, a))}</button>`;
 
   const noStaff = a.k === 'hab' || a.k === 'farm' || a.k === 'power';   // pas d'effectif pour ces types
+  if (n) btn += ` <button class="btn danger" onclick="demolish(${i},'${a.k}')" title="Détruire sans remboursement">Détruire</button>`;
   const total = n
     ? `<span class="tot">total : ${noStaff ? '×' + n : '×' + n + ' · effectif ' + Math.round(c.staff * 100) + ' %'}</span>`
     : '';
@@ -163,7 +169,7 @@ function buildRow(i, a, j, M, c) {
   return `<div class="build-row ${locked ? 'lock' : ''} ${a.k === 'spec' ? 'spec' : ''}">
     <div class="build-icon">${a.ic}</div>
     <div class="build-info">
-      <strong>${S.nm[j]} <span class="build-count">×${n}${a.max ? '/' + a.max : ''}</span></strong>
+      <strong>${a.project ? 'Gros projet · ' : ''}${S.nm[j]} <span class="build-count">×${n}${a.max ? '/' + a.max : ''}</span></strong>
       <span>${unitTxt(i, a, M)}</span>${total}
     </div>${btn}</div>`;
 }
@@ -188,34 +194,35 @@ function renderOps() {
   const M = getModifiers();
 
   const firstExo = SITES.findIndex(S => S.exo);
-  $('ops').innerHTML = SITES.map((S, i) => {
+  const orderedSites = SITES.map((S, i) => [S, i]).sort(([a], [b]) => (a.n === 'LAGRANGE 1' ? -1 : b.n === 'LAGRANGE 1' ? 1 : 0));
+  $('ops').innerHTML = orderedSites.map(([S, i]) => {
     const s = state.sites[i], c = siteCalc(i), F = siteFactor(i, M);
     let body;
 
     if (s.colonized) {
       body = `<div class="build-list">${ARCH.map((a, j) => buildRow(i, a, j, M, c)).join('')}</div>
-        <div class="build-total">TOTAL SITE · <b>+${R(c.bud, 1)}M/an</b> (−${R(c.upk, 1)}M entretien)
+        <div class="build-total">ÉNERGIE : <b>${R(c.energyProduced, 1)} produites / ${R(c.energyRequired, 1)} consommées</b> · <b class="${c.energyRatio < 1 ? 'negative' : 'positive'}">${Math.round(c.energyRatio * 100)} % couvert</b> · TOTAL SITE · rations : <b>${Math.round(BALANCE.population.baseFood + (s.b.hab || 0) * BALANCE.population.habFood + (s.b.farm || 0) * BALANCE.population.farmFood * (S.sp.farm || 1) * (1 + M.food))}/an</b> · <span title="La capacité d’accueil retenue est le minimum entre places et rations.">ⓘ</span> · <b>+${R(c.bud, 1)}M/an</b> (−${R(c.upk, 1)}M/an d’entretien <span title="Coût annuel des bâtiments, calculé selon leur coût et la distance">ⓘ</span>)
           · <b>+${R(c.res, 1)} RP/an</b> · effectif <b>${Math.round(c.staff * 100)} %</b></div>`;
     } else {
       let action;
       if (s.mission)
-        action = `<button class="btn warning" disabled>Mission en vol · ${s.mission.arrival}</button>`;
+        action = `<button class="btn warning" disabled>Installation en cours · arrivée ${s.mission.arrival}</button>`;
       else if (missingReqs(i).length)
         action = `<button class="btn" disabled>${missingReqs(i).length} technologie${missingReqs(i).length > 1 ? 's' : ''} manquante${missingReqs(i).length > 1 ? 's' : ''}</button>`;
       else
-        action = `<button class="btn primary" onclick="launch(${i})">Lancer la mission · ${money(missionCost(i))}</button>`;
+        action = `<button class="btn primary" onclick="launch(${i})">Installer la colonie · ${money(missionCost(i))}</button>`;
       body = `<div class="reqs"><span>PRÉREQUIS</span>${reqChips(i)}</div><div class="build-actions">${action}</div>`;
     }
 
-    // Indications : croissance de population par tour, et tours avant le prochain emplacement
+    // Indications : croissance de population par an, et années avant le prochain emplacement
     let popNote = '', slotNote = '';
     if (s.colonized) {
       const g = popGrowth(i), t = turnsToNextSlot(i);
-      popNote = g > 0.05 ? `<small class="up">+${R(g, 1)} / tour</small>`
-              : g < -0.05 ? `<small class="down">${R(g, 1)} / tour</small>`
+      popNote = g > 0.05 ? `<small class="up">+${R(g, 1)} / an</small>`
+              : g < -0.05 ? `<small class="down">${R(g, 1)} / an</small>`
               : `<small>stable · capacité atteinte</small>`;
       slotNote = t !== null
-        ? `<small class="up">+1 emplacement dans ${t} tour${t > 1 ? 's' : ''}</small>`
+        ? `<small class="up">+1 emplacement dans ${t} an${t > 1 ? 's' : ''}</small>`
         : `<small class="down">limite bloquée · agrandir la capacité</small>`;
     }
 
@@ -223,24 +230,24 @@ function renderOps() {
       ? `<div class="popbar"><i style="width:${Math.min(100, c.pop / c.cap * 100)}%"></i></div>` : '';
 
     const sep = i === firstExo
-      ? `<div class="ops-sep">HORS SYSTÈME SOLAIRE · missions interstellaires de fin de partie</div>` : '';
-    const dist = S.exo ? `${S.ly} al · distance ×${S.d.toFixed(0)}` : `distance ×${S.d.toFixed(1)}`;
+      ? `<div class="ops-sep">AU-DELÀ DU SYSTÈME SOLAIRE · missions lointaines de fin de partie</div>` : '';
+    const dist = S.exo ? `${S.ly} al · indice de distance ×${S.d.toFixed(0)}` : `indice de distance ×${S.d.toFixed(1)}`;
 
     return sep + `<article class="site-card ${s.colonized ? 'colonized' : ''} ${S.exo ? 'exo' : ''}">
       <span class="status ${s.colonized ? 'live' : ''}">${s.colonized ? 'COLONISÉ' : 'NON COLONISÉ'}</span>
       <h3>${S.n}</h3>
       <div class="distance">${dist} · fenêtre ${duration(i)} ans · rendement ×${R(F, 1)}</div>
-      <div class="site-tag">${S.tag}</div>
+      <div class="site-tag">Gros projet : <b>${S.nm[5]}</b> · ${S.tag}</div>
       <div class="site-meta">
-        <div>MISSION<b>${money(missionCost(i))}</b></div>
-        <div>POPULATION<b>${Math.round(c.pop)}${s.colonized ? ' / ' + c.cap : ''}</b>${popBar}${popNote}</div>
-        <div>BÂTIMENTS<b>${s.colonized ? c.used + ' / ' + c.slots : 0}</b>${slotNote}</div>
+        <div>INSTALLATION<b>${s.colonized ? 'Terminée' : 'À lancer'}</b></div>
+        <div>POPULATION <span title="La capacité d’accueil est limitée par les places et les rations produites.">ⓘ</span><b>${s.colonized ? Math.round(c.pop) + ' / ' + c.cap : 'Après installation'}</b>${popBar}${popNote}</div>
+        <div>BÂTIMENTS <span title="Chaque bâtiment occupe un emplacement. La capacité augmente avec la population.">ⓘ</span><b>${s.colonized ? c.used + ' / ' + c.slots : 'Après installation'}</b>${slotNote}</div>
       </div>${body}</article>`;
   }).join('');
 }
 
 /* =====================================================================
-   CONTRATS UN
+   CONTRATS ONU
    ===================================================================== */
 function renderContracts() {
   const rank = c => (c.done || c.failed ? 1 : 0);
@@ -259,7 +266,7 @@ function renderContracts() {
     const pay = contractPayout(c);
 
     let note = def.hold
-      ? `À maintenir jusqu’en ${c.deadline}` : `Échéance : ${c.deadline}`;
+      ? `À maintenir jusqu’à l’année ${c.deadline}` : `Échéance : année ${c.deadline}`;
     if (!c.done && !c.failed) note += left > 0 ? ` (dans ${left} an${left > 1 ? 's' : ''})` : ' (dernière année)';
 
     // Barre de progression pour les contrats chiffrés
@@ -273,7 +280,7 @@ function renderContracts() {
 
     return `<div class="contract ${c.done ? 'ok' : ''} ${c.failed ? 'ko' : ''}">
       <div class="contract-top"><strong>${def.name}</strong><span class="tag ${tagClass}">${tagText}</span></div>
-      <p>${note} · évalué automatiquement au passage de l’année.</p>${prog}
+      <p>${note} · évalué au passage de chaque année.</p>${prog}
       <div class="reward">SUCCÈS <b class="pay ${pay.kind}">${payoutText(pay)}</b>&nbsp;&nbsp; / &nbsp;&nbsp;<span style="color:var(--danger)">ÉCHEC ${def.penalty} % confiance</span></div>
     </div>`;
   }).join('');
@@ -314,7 +321,7 @@ function updateSetup() {
                        : ratio >= 0.55 ? ['Exigeant', 'var(--orange)']
                        : ['Très difficile', 'var(--danger)'];
   $('setupHint').innerHTML = `Difficulté estimée : <b style="color:${color}">${label}</b>. `
-    + (horizon < 60 ? 'Un mandat court met les mondes hors système hors de portée. '
+    + (horizon < 60 ? 'Un mandat court met les mondes mondes lointains hors de portée. '
        : horizon < 100 ? 'Les exoplanètes de fin de partie resteront un défi sur cet horizon. '
        : 'Un mandat long permet de viser les exoplanètes de fin de partie. ');
 }
