@@ -113,7 +113,6 @@ function nextYear() {
   state.contracts.forEach(c => {
     if (c.done || c.failed) return;
     const def = CONTRACT_BY_ID[c.id];
-    if (!def) { c.failed = true; return; }
     const ok = def.check(state);
     let result = null;
     if (def.hold) {                                  // à maintenir jusqu'à l'échéance
@@ -161,34 +160,28 @@ function load() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) { toast('Aucune sauvegarde (les anciennes ne sont plus compatibles).'); return false; }
 
+  // Une sauvegarde locale peut être tronquée ou provenir d'une version incompatible.
+  // Ne jamais laisser JSON.parse (ou un état partiel) faire planter l'interface.
+  let candidate;
   try {
-    const saved = JSON.parse(raw);
-    // Refuser silencieusement les structures qui ne correspondent pas à l'état
-    // actuel : JSON.parse seul pouvait faire planter render() au démarrage.
-    const valid = saved && Number.isFinite(saved.startYear) &&
-      Number.isFinite(saved.endYear) && Number.isFinite(saved.year) &&
-      saved.startYear === BALANCE.start.year && saved.endYear >= saved.startYear &&
-      saved.year >= saved.startYear && saved.year <= saved.endYear &&
-      Number.isFinite(saved.budget) && saved.budget >= 0 &&
-      Number.isFinite(saved.rp) && saved.rp >= 0 &&
-      Number.isFinite(saved.confidence) && saved.confidence >= 0 && saved.confidence <= 100 &&
-      Array.isArray(saved.sites) && saved.sites.length === SITES.length &&
-      saved.sites.every(s => s && typeof s === 'object' && typeof s.colonized === 'boolean' &&
-        Number.isFinite(s.pop) && s.pop >= 0 && s.b && typeof s.b === 'object' &&
-        (!s.mission || (Number.isFinite(s.mission.arrival) && Number.isFinite(s.mission.duration) && s.mission.duration >= 1))) &&
-      Array.isArray(saved.tech) && saved.tech.every(id => TECH.some(t => t.id === id)) &&
-      Array.isArray(saved.contracts) && saved.contracts.every(c => c && CONTRACT_BY_ID[c.id] &&
-        Number.isFinite(c.from) && Number.isFinite(c.deadline) &&
-        typeof c.done === 'boolean' && typeof c.failed === 'boolean' &&
-        (!c.kind || ['conf', 'budget', 'rp'].includes(c.kind)));
-    if (!valid) throw new Error('invalid save shape');
-
-    state = saved;
-    render();
-    toast('Sauvegarde chargée.');
-    return true;
+    candidate = JSON.parse(raw);
   } catch (err) {
-    toast('Sauvegarde invalide ou corrompue.');
+    toast('Sauvegarde illisible : lancez une nouvelle partie.');
     return false;
   }
+  const valid = candidate && Number.isFinite(candidate.year)
+    && Number.isFinite(candidate.endYear)
+    && Array.isArray(candidate.sites)
+    && candidate.sites.length === SITES.length
+    && Array.isArray(candidate.tech)
+    && Array.isArray(candidate.contracts);
+  if (!valid) {
+    toast('Sauvegarde incompatible : lancez une nouvelle partie.');
+    return false;
+  }
+
+  state = candidate;
+  render();
+  toast('Sauvegarde chargée.');
+  return true;
 }
