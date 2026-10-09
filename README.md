@@ -1,7 +1,7 @@
 # SpaceMandat
 
-Jeu de gestion spatiale (prototype v0.9) : dirigez le programme spatial civil de l'ONU de 2026 à 2106,
-colonisez 10 astres, développez 108 technologies et gardez la confiance de l'ONU.
+Jeu de gestion spatiale (prototype v0.9) : dirigez le programme spatial civil de l'ONU de 2026 jusqu'à l'horizon que vous choisissez (40 à 120 ans, 80 par défaut),
+colonisez 15 astres (dont 5 exoplanètes de fin de partie), développez 108 technologies et gardez la confiance de l'ONU.
 
 100 % statique : HTML + CSS + JavaScript, **aucune dépendance, aucun build**. 
 
@@ -20,7 +20,7 @@ index.html            page unique (structure + ordre de chargement des scripts)
 css/style.css         styles (palette dans :root)
 js/
   data/techs.js       les 108 technologies (nom, ère, coût, prérequis, textes)
-  config.js           ⭐ ÉQUILIBRAGE : BALANCE, SITES, ARCH, effets des techs, contrats
+  config.js           ⭐ ÉQUILIBRAGE : BALANCE (dont fenêtre de départ), SITES, ARCH, effets des techs, CONTRACT_POOL
   utils.js            helpers de formatage, notifications
   state.js            état de la partie + génération des effets de technologies
   mechanics.js        formules de calcul (revenus, population, coûts…) — sans DOM
@@ -38,4 +38,16 @@ Voir [BALANCING.md](BALANCING.md). Presque tout se règle dans `js/config.js`.
 
 ## Sauvegarde
 
-Stockée dans le `localStorage` du navigateur (clé `spacemandat-save2`).
+Stockée dans le `localStorage` du navigateur (clé `spacemandat-save3`).
+
+## Nouveautés
+
+- **Fenêtre de démarrage** : choix du budget initial (150–1 500 M) et de l'horizon du mandat (40–120 ans),
+  avec une estimation de la difficulté. Rouvrable via « Nouvelle partie ». Bornes dans `BALANCE.setup`.
+- **32 contrats UN tirés au hasard** (`CONTRACT_POOL`) : 5 au départ, puis un nouveau tous les 7 ans.
+  Délais relatifs au moment du tirage, barres de progression, contrats « à maintenir » (`hold`).
+  Les contrats de fin de partie (`after`) n'apparaissent qu'au bout de plusieurs décennies, et jamais
+  si leur échéance dépasse la fin du mandat.
+- **5 exoplanètes** (Proxima b, Barnard b, Teegarden b, Gliese 667 Cc, TRAPPIST-1 e), verrouillées par
+  les technologies de propulsion tardives (P09, P12, P13, P14, P17) et affichées dans la bande
+  « hors système » de la carte.

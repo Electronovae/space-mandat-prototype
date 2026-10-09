@@ -3,7 +3,17 @@
    ===================================================================== */
 'use strict';
 
-const SAVE_KEY = 'spacemandat-save2';
+const SAVE_KEY = 'spacemandat-save3';   // v3 : horizon variable + contrats tirés au hasard
+
+/* Démarre une nouvelle partie avec le budget et l'horizon choisis (fenêtre de démarrage).
+   Les contrats sont tirés ici, une fois `state` en place (certains contrats lisent l'état global). */
+function newGame(budget, horizon) {
+  state = fresh(budget, horizon);
+  for (let k = 0; k < BALANCE.contracts.initial; k++) drawContract(state);
+  treeSel = null;
+  render();
+  toast('Mandat ' + state.startYear + '–' + state.endYear + ' · ' + state.contracts.length + ' contrats UN tirés.');
+}
 
 /* Lancer une mission de colonisation vers le site i */
 function launch(i) {
@@ -57,11 +67,11 @@ function researchTech(id) {
      3. évolution de la population de chaque colonie
      4. variation de confiance, année + 1
      5. arrivée des missions (nouvelle colonie)
-     6. évaluation des contrats
+     6. évaluation des contrats, puis éventuel nouveau contrat tiré au hasard
      7. bilan affiché
    --------------------------------------------------------------------- */
 function nextYear() {
-  if (state.year >= BALANCE.endYear) { toast('Fin du mandat atteinte.'); return; }
+  if (state.year >= state.endYear) { toast('Fin du mandat atteinte.'); return; }
 
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
@@ -102,20 +112,36 @@ function nextYear() {
     }
   });
 
-  // 6. Contrats (définitions dans CONTRACTS, config.js)
-  CONTRACTS.forEach((def, i) => {
-    const c = state.contracts[i];
+  // 6. Contrats (définitions dans CONTRACT_POOL, config.js)
+  state.contracts.forEach(c => {
     if (c.done || c.failed) return;
-    if (def.check(state)) {
+    const def = CONTRACT_BY_ID[c.id];
+    const ok = def.check(state);
+    let result = null;
+    if (def.hold) {                                  // à maintenir jusqu'à l'échéance
+      if (!ok) result = 'fail';
+      else if (state.year >= c.deadline) result = 'win';
+    } else if (ok) result = 'win';
+    else if (state.year > c.deadline) result = 'fail';
+
+    if (result === 'win') {
       c.done = true;
       state.confidence = Math.min(100, state.confidence + def.reward * (1 + M.reward));
       toast('Contrat réussi : ' + def.name);
-    } else if (state.year > def.deadline) {
+    } else if (result === 'fail') {
       c.failed = true;
       state.confidence = Math.max(0, state.confidence + def.penalty);
       toast('Contrat échoué : ' + def.name);
     }
   });
+
+  // Nouveau contrat tiré au hasard tous les N ans (tant qu'il n'y en a pas trop d'actifs)
+  const K = BALANCE.contracts;
+  const active = state.contracts.filter(c => !c.done && !c.failed).length;
+  if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive) {
+    const c = drawContract(state);
+    if (c) toast('Nouveau contrat UN : ' + CONTRACT_BY_ID[c.id].name);
+  }
 
   // 7. Bilan du tour
   renderBilan({ T, pop0, pop1: totals().pop, conf0 });
@@ -132,8 +158,9 @@ function save() {
 
 function load() {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) { toast('Aucune sauvegarde (les anciennes ne sont plus compatibles).'); return; }
+  if (!raw) { toast('Aucune sauvegarde (les anciennes ne sont plus compatibles).'); return false; }
   state = JSON.parse(raw);
   render();
   toast('Sauvegarde chargée.');
+  return true;
 }

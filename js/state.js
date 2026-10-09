@@ -28,21 +28,49 @@ TECH.forEach(t => {
 
 /* ---------------------------------------------------------------------
    Nouvelle partie
+   fresh(budget, horizon) : budget de départ (M) et durée du mandat (années),
+   choisis dans la fenêtre de démarrage (valeurs par défaut : BALANCE.setup).
+   state.endYear = année de fin du mandat
    state.sites[i] = { colonized, pop, b:{hab:n,farm:n,…}, mission:{arrival,duration}|null }
-   state.contracts[i] = { done, failed }  (définition dans CONTRACTS, config.js)
+   state.contracts = contrats tirés : [{ id, from, deadline, done, failed }]
+                     (définition dans CONTRACT_POOL, config.js)
    state.tech = liste d'ids de technologies développées
+   Les contrats sont tirés par newGame() (actions.js), pas ici.
    --------------------------------------------------------------------- */
-function fresh() {
+function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizon.def) {
   const S = BALANCE.start;
   return {
+    startYear: S.year,
+    endYear: S.year + horizon,
     year: S.year,
-    budget: S.budget,
+    budget,
     rp: S.rp,
     confidence: S.confidence,
     sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null })),
     tech: [],
-    contracts: CONTRACTS.map(() => ({ done: false, failed: false })),
+    contracts: [],
   };
+}
+
+/* ---------------------------------------------------------------------
+   Tirage d'un contrat au hasard dans CONTRACT_POOL (le contrat est ajouté à st.contracts)
+   Sont écartés : les contrats déjà proposés, ceux pas encore « débloqués » (def.after),
+   ceux dont l'échéance dépasse la fin du mandat, ceux déjà remplis (sauf « hold »,
+   qui doit au contraire être vrai au moment du tirage).
+   Retourne l'entrée créée, ou null s'il ne reste rien d'éligible.
+   --------------------------------------------------------------------- */
+function drawContract(st) {
+  const elapsed = st.year - st.startYear;
+  const pool = CONTRACT_POOL.filter(d =>
+    !st.contracts.some(c => c.id === d.id) &&
+    elapsed >= (d.after || 0) &&
+    st.year + d.years <= st.endYear &&
+    (d.hold ? d.check(st) : !d.check(st)));
+  if (!pool.length) return null;
+  const def = pool[Math.floor(Math.random() * pool.length)];
+  const entry = { id: def.id, from: st.year, deadline: st.year + def.years, done: false, failed: false };
+  st.contracts.push(entry);
+  return entry;
 }
 
 let state = fresh();

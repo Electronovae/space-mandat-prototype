@@ -30,7 +30,7 @@
     </nav>
     <div class="side-foot">
       SECTEUR SOLAIRE · A-01<br>
-      Mandat actif · <span style="color:var(--lime)">80 ans</span><br><br>
+      Mandat actif · <span style="color:var(--lime)" id="mandateLen">80 ans</span><br><br>
       v0.9 prototype<br>Simulation locale
     </div>
   </aside>
@@ -45,6 +45,7 @@
         <p>Construire une présence humaine durable au-delà de la Terre.</p>
       </div>
       <div class="actions">
+        <button class="btn" id="newGame">⟲ Nouvelle partie</button>
         <button class="btn" id="save">↓ Sauvegarder</button>
         <button class="btn" id="load">↑ Charger</button>
         <button class="btn primary" id="nextYear">Avancer d’un an&nbsp; →</button>
@@ -72,7 +73,7 @@
       <div class="metric year">
         <div class="label">Année du mandat</div>
         <div class="val" id="year">—</div>
-        <div class="hint">horizon 2106</div>
+        <div class="hint" id="horizonHint">horizon 2106</div>
       </div>
     </section>
 
@@ -84,9 +85,15 @@
         <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
         <div class="card map-card">
           <h3>Carte du système solaire <span id="mapCount" style="float:right;color:var(--muted);font:10px 'DM Mono'"></span></h3>
-          <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
-          <div id="mapSites"></div>
-          <div class="legend"><i></i> distance relative · cliquer Opérations pour agir</div>
+          <div class="map-sys">
+            <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
+            <div id="mapSites"></div>
+            <div class="legend"><i></i> distance relative · cliquer Opérations pour agir</div>
+          </div>
+          <div class="map-ext">
+            <div class="map-ext-title">HORS SYSTÈME · fin de partie</div>
+            <div class="map-ext-row" id="mapExo"></div>
+          </div>
         </div>
 
         <div>
@@ -120,7 +127,7 @@
     <!-- ============================ VUE : CONTRATS ============================ -->
     <div id="contracts" class="view">
       <div class="section-head">
-        <div><h2>Contrats UN</h2><p>Des objectifs publics qui structurent le mandat.</p></div>
+        <div><h2>Contrats UN</h2><p>Des objectifs publics, tirés au hasard à chaque partie, qui structurent le mandat.</p></div>
         <span class="tag orange">SUIVI AUTOMATIQUE</span>
       </div>
       <div class="contracts" id="contractsList"></div>
@@ -147,6 +154,40 @@
 <!-- Notification temporaire -->
 <div class="toast" id="toast"></div>
 
+<!-- ============================ FENÊTRE DE DÉMARRAGE ============================ -->
+<div class="modal" id="setup">
+  <div class="card setup">
+    <div class="eyebrow">BRIEFING DE MANDAT · ONU</div>
+    <h2 style="margin:8px 0 10px">Paramètres du mandat</h2>
+    <p class="muted">Choisissez l’enveloppe initiale et la durée de votre mandat. Cinq contrats UN seront tirés au hasard au départ, d’autres suivront.</p>
+
+    <div class="field">
+      <label for="setupBudget">Budget initial <b id="setupBudgetVal"></b></label>
+      <input type="range" id="setupBudget">
+      <div class="chips" data-for="setupBudget">
+        <button data-v="200">Serré · 200</button><button data-v="420">Standard · 420</button>
+        <button data-v="800">Confortable · 800</button><button data-v="1200">Généreux · 1 200</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="setupHorizon">Horizon du mandat <b id="setupHorizonVal"></b></label>
+      <input type="range" id="setupHorizon">
+      <div class="chips" data-for="setupHorizon">
+        <button data-v="40">Court · 40 ans</button><button data-v="80">Standard · 80 ans</button>
+        <button data-v="120">Long · 120 ans</button>
+      </div>
+    </div>
+
+    <p class="setup-hint" id="setupHint"></p>
+    <div class="setup-actions">
+      <button class="btn" id="setupCancel">Annuler</button>
+      <button class="btn" id="setupLoad">↑ Reprendre la sauvegarde</button>
+      <button class="btn primary" id="setupStart">Lancer le mandat →</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================ TUTORIEL ============================ -->
 <div class="modal" id="tutorial">
   <div class="card tutorial">
@@ -158,7 +199,8 @@
       <li><b style="color:var(--ink)">Missions :</b> une mission consomme un budget de base multiplié par la distance du site et arrive après plusieurs années. Le risque baisse avec la recherche.</li>
       <li><b style="color:var(--ink)">Bâtiments :</b> chaque astre a ses propres bâtiments (logement, serre, labo, mine, énergie + un bâtiment spécial). Coût et rendement augmentent avec la distance, mais le rendement plus vite que le coût : les astres lointains sont plus rentables. La population fournit l’équipage (effectif), les emplacements et des revenus.</li>
       <li><b style="color:var(--ink)">Technologies :</b> chaque branche agit sur un levier précis (énergie → centrales et mines, propulsion → coût et durée des missions, matériaux → coût des bâtiments, vie → population, information → recherche, sociétés → confiance et budget). Certaines débloquent des missions ou des bâtiments</li>
-      <li><b style="color:var(--ink)">Contrats :</b> réussir un objectif à temps augmente la confiance. Un échec la réduit.</li>
+      <li><b style="color:var(--ink)">Contrats :</b> à chaque partie, l’ONU tire au hasard une série d’objectifs, puis en propose de nouveaux au fil des années. Réussir à temps augmente la confiance, un échec la réduit.</li>
+      <li><b style="color:var(--ink)">Hors système :</b> en fin de partie, les technologies de propulsion les plus avancées ouvrent des missions interstellaires vers cinq exoplanètes. Très chères et très longues, mais très rentables.</li>
       <li><b style="color:var(--ink)">Bilan :</b> utilisez « Avancer d’un an » pour percevoir les revenus, payer les dépenses et faire progresser les missions.</li>
       <li><b style="color:var(--ink)">Sauvegarde :</b> l’état est stocké dans le navigateur via localStorage.</li>
     </ul>

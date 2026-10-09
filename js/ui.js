@@ -28,7 +28,10 @@ function render() {
 
   $('confidence').textContent = Math.round(state.confidence) + '%';
   $('year').textContent = state.year;
+  $('horizonHint').textContent = 'horizon ' + state.endYear;
+  $('mandateLen').textContent = (state.endYear - state.startYear) + ' ans';
 
+  renderMap();
   renderActivity();
   renderOps();
   renderContracts();
@@ -39,12 +42,26 @@ function render() {
    CENTRE DE COMMANDEMENT
    ===================================================================== */
 
-/* Carte du système solaire : un astre par entrée de SITES.
-   Les positions viennent des classes CSS .s1 … .s10 (css/style.css). */
+/* Carte du système solaire : un astre par entrée de SITES (hors exo).
+   Les positions viennent des classes CSS .s1 … .s10 (css/style.css).
+   Les exoplanètes (SITES[i].exo) sont affichées dans la bande « hors système »
+   sous la carte ; leur état (verrouillée / en vol / colonisée) est mis à jour à chaque render(). */
 function renderMap() {
-  $('mapSites').innerHTML = SITES.map((S, i) =>
-    `<div class="site s${i + 1}">${S.label}<small>${S.d.toFixed(1)}×</small></div>`
+  const inSystem = SITES.map((S, i) => [S, i]).filter(([S]) => !S.exo);
+  const outside  = SITES.map((S, i) => [S, i]).filter(([S]) => S.exo);
+
+  $('mapSites').innerHTML = inSystem.map(([S, i], k) =>
+    `<div class="site s${k + 1} ${state.sites[i].colonized ? 'on' : ''}">${S.label}<small>${S.d.toFixed(1)}×</small></div>`
   ).join('');
+
+  $('mapExo').innerHTML = outside.map(([S, i]) => {
+    const s = state.sites[i];
+    const cls = s.colonized ? 'on' : s.mission ? 'fly' : (S.req && !has(S.req)) ? 'lock' : '';
+    const st = s.colonized ? 'colonisée' : s.mission ? 'en vol · ' + s.mission.arrival
+             : (S.req && !has(S.req)) ? 'requiert ' + S.req : 'accessible';
+    return `<div class="exo-chip ${cls}" title="${S.n} · ${S.tag}">${S.label}<small>${S.ly} al · ${st}</small></div>`;
+  }).join('');
+
   $('mapCount').textContent = SITES.length + ' sites suivis';
 }
 
@@ -153,6 +170,7 @@ function buildRow(i, a, j, M, c) {
 function renderOps() {
   const M = getModifiers();
 
+  const firstExo = SITES.findIndex(S => S.exo);
   $('ops').innerHTML = SITES.map((S, i) => {
     const s = state.sites[i], c = siteCalc(i), F = siteFactor(i, M);
     let body;
@@ -175,10 +193,14 @@ function renderOps() {
     const popBar = s.colonized
       ? `<div class="popbar"><i style="width:${Math.min(100, c.pop / c.cap * 100)}%"></i></div>` : '';
 
-    return `<article class="site-card ${s.colonized ? 'colonized' : ''}">
+    const sep = i === firstExo
+      ? `<div class="ops-sep">HORS SYSTÈME SOLAIRE · missions interstellaires de fin de partie</div>` : '';
+    const dist = S.exo ? `${S.ly} al · distance ×${S.d.toFixed(0)}` : `distance ×${S.d.toFixed(1)}`;
+
+    return sep + `<article class="site-card ${s.colonized ? 'colonized' : ''} ${S.exo ? 'exo' : ''}">
       <span class="status ${s.colonized ? 'live' : ''}">${s.colonized ? 'COLONISÉ' : 'NON COLONISÉ'}</span>
       <h3>${S.n}</h3>
-      <div class="distance">distance ×${S.d.toFixed(1)} · fenêtre ${duration(i)} ans · rendement ×${R(F, 1)}</div>
+      <div class="distance">${dist} · fenêtre ${duration(i)} ans · rendement ×${R(F, 1)}</div>
       <div class="site-tag">${S.tag}</div>
       <div class="site-meta">
         <div>MISSION<b>${money(missionCost(i))}</b></div>
@@ -193,16 +215,88 @@ function renderOps() {
    ===================================================================== */
 function renderContracts() {
   const rewardBonus = getModifiers().reward;
-  $('contractsList').innerHTML = CONTRACTS.map((def, i) => {
-    const c = state.contracts[i];
+  const rank = c => (c.done || c.failed ? 1 : 0);
+  const list = [...state.contracts].sort((a, b) => rank(a) - rank(b) || a.deadline - b.deadline);
+
+  if (!list.length) {
+    $('contractsList').innerHTML = '<p class="muted">Aucun contrat pour l’instant.</p>';
+    return;
+  }
+
+  $('contractsList').innerHTML = list.map(c => {
+    const def = CONTRACT_BY_ID[c.id];
     const tagClass = c.done ? 'green' : c.failed ? 'orange' : '';
     const tagText = c.done ? 'RÉUSSI' : c.failed ? 'ÉCHOUÉ' : 'ACTIF';
-    return `<div class="contract ${c.done ? 'ok' : ''}">
+    const left = c.deadline - state.year;
+
+    let note = def.hold
+      ? `À maintenir jusqu’en ${c.deadline}` : `Échéance : ${c.deadline}`;
+    if (!c.done && !c.failed) note += left > 0 ? ` (dans ${left} an${left > 1 ? 's' : ''})` : ' (dernière année)';
+
+    // Barre de progression pour les contrats chiffrés
+    let prog = '';
+    if (def.val) {
+      const cur = def.val(state);
+      const pctDone = Math.max(0, Math.min(100, cur / def.target * 100));
+      prog = `<div class="bar"><i style="width:${c.done ? 100 : pctDone}%"></i></div>
+        <div class="prog">${Number.isInteger(cur) || cur >= 100 ? Math.round(cur) : R(cur, 1)} / ${def.target} ${def.unit}</div>`;
+    }
+
+    return `<div class="contract ${c.done ? 'ok' : ''} ${c.failed ? 'ko' : ''}">
       <div class="contract-top"><strong>${def.name}</strong><span class="tag ${tagClass}">${tagText}</span></div>
-      <p>Échéance : ${def.deadline} · Les objectifs sont évalués automatiquement au passage de l’année.</p>
+      <p>${note} · évalué automatiquement au passage de l’année.</p>${prog}
       <div class="reward">SUCCÈS +${Math.round(def.reward * (1 + rewardBonus))}% confiance&nbsp;&nbsp; / &nbsp;&nbsp;<span style="color:var(--danger)">ÉCHEC ${def.penalty}%</span></div>
     </div>`;
   }).join('');
+}
+
+/* =====================================================================
+   FENÊTRE DE DÉMARRAGE (budget + horizon)
+   ---------------------------------------------------------------------
+   Affichée au lancement et via le bouton « Nouvelle partie ».
+   Bornes / valeurs par défaut : BALANCE.setup (config.js).
+   ===================================================================== */
+let gameStarted = false;   // false tant que le joueur n'a pas validé la fenêtre
+
+function openSetup() {
+  const B = BALANCE.setup;
+  for (const [id, cfg] of [['setupBudget', B.budget], ['setupHorizon', B.horizon]]) {
+    const el = $(id);
+    el.min = cfg.min; el.max = cfg.max; el.step = cfg.step;
+    if (!gameStarted || !el.value) el.value = cfg.def;
+  }
+  $('setupCancel').style.display = gameStarted ? '' : 'none';
+  $('setupLoad').style.display = localStorage.getItem(SAVE_KEY) ? '' : 'none';
+  updateSetup();
+  $('setup').style.display = 'flex';
+}
+
+function updateSetup() {
+  const budget = +$('setupBudget').value, horizon = +$('setupHorizon').value;
+  const y0 = BALANCE.start.year;
+  $('setupBudgetVal').textContent = budget + ' M';
+  $('setupHorizonVal').textContent = horizon + ' ans · ' + y0 + ' → ' + (y0 + horizon);
+
+  // Indice de difficulté : budget par année de mandat, comparé aux valeurs par défaut
+  const B = BALANCE.setup, ref = B.budget.def / B.horizon.def, ratio = (budget / horizon) / ref;
+  const [label, color] = ratio >= 1.8 ? ['Très confortable', 'var(--lime)']
+                       : ratio >= 1.15 ? ['Confortable', 'var(--lime)']
+                       : ratio >= 0.85 ? ['Équilibré', 'var(--cyan)']
+                       : ratio >= 0.55 ? ['Exigeant', 'var(--orange)']
+                       : ['Très difficile', 'var(--danger)'];
+  $('setupHint').innerHTML = `Difficulté estimée : <b style="color:${color}">${label}</b>. `
+    + (horizon < 60 ? 'Un mandat court ne laisse guère de chances d’atteindre les mondes hors système. '
+       : horizon >= 100 ? 'Un mandat long permet de viser les exoplanètes de fin de partie. ' : '');
+}
+
+function setSetup(id, v) { $(id).value = v; updateSetup(); }
+
+function startGame() {
+  const first = !gameStarted;
+  newGame(+$('setupBudget').value, +$('setupHorizon').value);
+  gameStarted = true;
+  $('setup').style.display = 'none';
+  if (first) setTimeout(() => { $('tutorial').style.display = 'flex'; }, 250);   // règles : 1re partie seulement
 }
 
 /* =====================================================================

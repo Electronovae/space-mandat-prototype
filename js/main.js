@@ -22,8 +22,21 @@ document.querySelectorAll('.nav button').forEach(btn => {
 $('nextYear').onclick = nextYear;
 $('save').onclick = save;
 $('load').onclick = load;
+$('newGame').onclick = openSetup;
 
-/* Démarrage */
-renderMap();
+/* Fenêtre de démarrage (budget + horizon) */
+$('setupBudget').oninput = updateSetup;
+$('setupHorizon').oninput = updateSetup;
+document.querySelectorAll('.chips button').forEach(b => {
+  b.onclick = () => setSetup(b.parentElement.dataset.for, b.dataset.v);
+});
+$('setupStart').onclick = startGame;
+$('setupCancel').onclick = () => { $('setup').style.display = 'none'; };
+$('setupLoad').onclick = () => {
+  if (load()) { gameStarted = true; $('setup').style.display = 'none'; }
+};
+
+/* Démarrage : on affiche d'abord la fenêtre de démarrage ; la partie
+   (et ses contrats tirés au hasard) commence quand le joueur la valide. */
 render();
-setTimeout(() => { $('tutorial').style.display = 'flex'; }, 500);   // tutoriel après 0,5 s
+openSetup();
