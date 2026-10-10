@@ -14,6 +14,7 @@ let treeSel = null;        // id de la techno sélectionnée (panneau de droite)
    RENDU GLOBAL
    ===================================================================== */
 function render() {
+  refreshProjectEfficiency();
   const T = totals();
   const net = T.bud - T.upk;
 
@@ -169,7 +170,7 @@ function unitTxt(i, a, M, c) {
     case 'lab':
       return `+${R(B.economy.labOutput * sp('lab') * (1 + M.lab) * F, 1)} PR/an à plein effectif`;
     case 'mine':
-      return `+${R(B.economy.mineIncome * sp('mine') * (1 + M.mine) * F, 1)}M/an à plein effectif`;
+      return `+${R(B.economy.mineIncome * sp('mine') * (1 + M.mine) * F * Math.pow(B.economy.mineDecay, state.sites[i].b.mine || 0), 1)}M/an à plein effectif${state.sites[i].b.mine ? ' (filons de moins en moins riches)' : ''}`;
     case 'power':
       return `+${R(B.economy.energy.powerPerCentral * sp('power'), 0)} énergie/an · +${Math.round(B.economy.powerBonus * 100 * (1 + M.power) * sp('power'))} % de production`;
     default:
@@ -185,18 +186,20 @@ function projectTxt(i, M = getModifiers()) {
   if (x.cap)      parts.push(`+${Math.round(x.cap * (1 + M.cap))} places`);
   if (x.conf)     parts.push(`+${x.conf} confiance/an`);
   if (x.global)   parts.push(...fxText(x.global).map(t => `<b class="glob">${t} (toutes colonies)</b>`));
+  const s = state.sites[i];
+  if (s.b.spec && s.eff !== undefined && s.eff < 0.99)
+    parts.push(`<em class="warn">efficacité ${Math.round(s.eff * 100)} % (travailleurs ou énergie insuffisants)</em>`);
   return parts.join(' · ');
 }
 
 /* Ligne de coûts récurrents d'un bâtiment : entretien, énergie, travailleurs */
 function runTxt(i, a, M) {
-  const parts = [`entretien ${R(upkeepOf(i, a), 1)}M/an`];
+  const parts = [earnsMoney(i, a) ? 'sans entretien' : `entretien ${R(upkeepOf(i, a), 1)}M/an`];
   const e = energyUseOf(a.k);
   if (a.k === 'power') parts.push('produit l’énergie');
-  else if (e) parts.push(`consomme ${R(e, 1)} énergie${a.k === 'spec' ? ' pendant le chantier' : ''}`);
+  else if (e) parts.push(`consomme ${R(e, 1)} énergie`);
   const w = workersOf(a.k);
   if (w) parts.push(`${Math.round(w * (1 - M.crew))} travailleurs`);
-  else if (a.k === 'spec') parts.push('sans travailleurs');
   return parts.join(' · ');
 }
 
@@ -249,6 +252,54 @@ function openTech(id) {
 let lockedShown = false;           // section « astres verrouillés » dépliée ?
 const buildOpen = new Set();       // colonies dont le menu de construction est ouvert
 function toggleBuild(i, open) { open ? buildOpen.add(i) : buildOpen.delete(i); }
+
+/* Navigation depuis un bouton (évite le JavaScript échappé dans les attributs onclick) */
+function goToView(v) { document.querySelector(`.nav button[data-view="${v}"]`).click(); }
+function goToTech(id) { goToView('tech'); jumpToTech(id); }
+
+/* ---------------------------------------------------------------------
+   Suggestions de recherche : les technologies à développer MAINTENANT
+   (prérequis déjà remplis) qui rapprochent d'un objectif concret :
+   bâtiments de base, Gros projet d'une colonie, objectifs ONU, prochains astres.
+   --------------------------------------------------------------------- */
+function missingChain(ids) {
+  const out = new Set(), stack = [...ids];
+  while (stack.length) {
+    const id = stack.pop();
+    if (has(id) || out.has(id)) continue;
+    out.add(id);
+    stack.push(...TECH.find(t => t.id === id).prerequisites);
+  }
+  return out;
+}
+
+function techSuggestions(max = 4) {
+  const goals = [];
+  for (const [id, what] of [['M01', 'débloque les mines (revenus)'], ['E01', 'débloque les centrales (énergie)'], ['I01', 'débloque les laboratoires (PR)']])
+    if (!has(id)) goals.push({ ids: [id], reason: what });
+  state.sites.forEach((s, i) => {
+    if (s.colonized && !s.b.spec && !s.project && !has(SITES[i].st))
+      goals.push({ ids: [SITES[i].st], reason: `Gros projet de ${SITES[i].n}` });
+  });
+  state.contracts.filter(c => !c.done && !c.failed).forEach(c => {
+    const m = CONTRACT_BY_ID[c.id].name.match(/\(([EPMVIS]\d\d)\)/);
+    if (m && !has(m[1])) goals.push({ ids: [m[1]], reason: `objectif ONU « ${contractName(c)} »` });
+  });
+  SITES.map((S, i) => i)
+    .filter(i => !state.sites[i].colonized && !state.sites[i].mission && missingReqs(i).length)
+    .sort((a, b) => missingChain(siteReqs(a)).size - missingChain(siteReqs(b)).size)
+    .slice(0, 2)
+    .forEach(i => goals.push({ ids: siteReqs(i), reason: `ouvre la route de ${SITES[i].n}` }));
+
+  const out = [];
+  for (const g of goals) {
+    const steps = [...missingChain(g.ids)].map(id => TECH.find(t => t.id === id)).filter(ready).sort((a, b) => a.rp - b.rp);
+    const t = steps.find(t => !out.some(o => o.id === t.id));   // une étape par objectif, pour varier les conseils
+    if (t) out.push({ id: t.id, rp: t.rp, reason: g.reason });
+    if (out.length >= max) break;
+  }
+  return out;
+}
 
 /* Aller à un astre dans Opérations (depuis la carte ou la liste « À décider ») */
 function goToSite(i) {
@@ -509,7 +560,7 @@ function renderTodo() {
   if (state.offer && state.offer.length)
     add('urgent', 'L’ONU attend votre choix parmi 3 objectifs.', 'showDraft()', 'Choisir');
   if (state.confidence < BALANCE.confidence.warn)
-    add('urgent', `Confiance à ${Math.round(state.confidence)} % : la révocation est proche, et la subvention ONU est faible.`, "document.querySelector('.nav button[data-view=\'contracts\']').click()", 'Objectifs');
+    add('urgent', `Confiance à ${Math.round(state.confidence)} % : la révocation est proche, et la subvention ONU est faible.`, "goToView('contracts')", 'Objectifs');
 
   state.sites.forEach((s, i) => {
     if (!s.colonized) return;
@@ -520,12 +571,15 @@ function renderTodo() {
     if (popGrowth(i) <= 0.05 && c.pop >= c.cap - 1)
       add('warn', `${S.n} : population bloquée par les ${c.limit === 'food' ? 'rations (serre)' : 'places (logement)'}.`, `goToSite(${i})`, 'Construire');
     if (c.used < c.slots) add('', `${S.n} : ${c.slots - c.used} emplacement${c.slots - c.used > 1 ? 's' : ''} libre${c.slots - c.used > 1 ? 's' : ''}.`, `goToSite(${i})`, 'Construire');
+    if (s.b.spec && s.eff !== undefined && s.eff < 0.9)
+      add('warn', `${S.n} : Gros projet à ${Math.round(s.eff * 100)} % d’efficacité (travailleurs ou énergie), son effet global est réduit.`, `goToSite(${i})`, 'Voir');
     if (!s.b.spec && !s.project && has(S.st) && c.used < c.slots)
       add('', `${S.n} : Gros projet « ${S.nm[5]} » disponible (${money(bCost(i, ARCH[5]))}).`, `goToSite(${i})`, 'Voir');
   });
 
   const affordable = TECH.filter(t => !has(t.id) && ready(t) && state.rp >= t.rp);
-  if (affordable.length) add('', `${affordable.length} technologie${affordable.length > 1 ? 's' : ''} abordable${affordable.length > 1 ? 's' : ''} avec vos ${R(state.rp, 0)} PR.`, "document.querySelector('.nav button[data-view=\'tech\']').click()", 'Rechercher');
+  techSuggestions(2).forEach(sg => add('', `Recherche conseillée : <b>${sg.id} · ${tname(sg.id)}</b> (${sg.rp} PR${state.rp >= sg.rp ? '' : ', il manque ' + R(sg.rp - state.rp, 0)}) → ${sg.reason}.`, `goToTech('${sg.id}')`, 'Voir'));
+  if (affordable.length) add('', `${affordable.length} technologie${affordable.length > 1 ? 's' : ''} abordable${affordable.length > 1 ? 's' : ''} avec vos ${R(state.rp, 0)} PR.`, "goToView('tech')", 'Rechercher');
 
   SITES.forEach((S, i) => {
     const s = state.sites[i];
@@ -534,7 +588,7 @@ function renderTodo() {
   });
 
   state.contracts.filter(c => !c.done && !c.failed && c.deadline - state.year <= 3).forEach(c =>
-    add('warn', `Objectif bientôt échu (fin ${c.deadline}) : ${contractName(c)}.`, "document.querySelector('.nav button[data-view=\'contracts\']').click()", 'Voir'));
+    add('warn', `Objectif bientôt échu (fin ${c.deadline}) : ${contractName(c)}.`, "goToView('contracts')", 'Voir'));
 
   const rank = { urgent: 0, warn: 1, '': 2 };
   items.sort((a, b) => rank[a.kind] - rank[b.kind]);
@@ -586,10 +640,11 @@ function techNode(t) {
   const done = has(t.id), rd = ready(t);
   const external = t.prerequisites.filter(p => TECH.find(x => x.id === p).branch !== t.branch);
   const status = done ? 'done' : !rd ? 'locked' : state.rp >= t.rp ? 'avail aff' : 'avail';
+  const sugg = treeSuggest.find(x => x.id === t.id);
 
   return `<div class="tn ${status} ${treeSel === t.id ? 'sel' : ''}" data-id="${t.id}" onclick="selectTech('${t.id}')"
       onmouseenter="hoverTech('${t.id}')" onmouseleave="hoverTech(null)">
-    <div class="tn-id">${t.id}${done ? ' ✓' : ''}</div>
+    <div class="tn-id">${t.id}${done ? ' ✓' : ''}${sugg ? ' <span class="sugg" title="' + sugg.reason + '">★ conseillée</span>' : ''}</div>
     <div class="tn-name">${t.name}</div>
     <div class="tn-fx">${t.effects}</div>
     <div class="tn-meta"><span>${t.rp} PR</span>${external.length ? `<span class="ext" title="Prérequis dans une autre branche">autre branche : ${external.join(' ')}</span>` : ''}</div>
@@ -598,7 +653,9 @@ function techNode(t) {
 
 function hoverTech(id) { treeHover = id; drawLinks(); }
 
+let treeSuggest = [];
 function renderTree() {
+  treeSuggest = techSuggestions(5);
   const B = BRANCHES.find(b => b[0] === treeBranch);
   const list = TECH.filter(t => t.branch === treeBranch);
 
@@ -606,7 +663,7 @@ function renderTree() {
   $('techTabs').innerHTML = BRANCHES.map(b => {
     const l = TECH.filter(t => t.branch === b[0]);
     return `<button class="${b[0] === treeBranch ? 'on' : ''}" style="--c:${b[2]}" onclick="selectBranch('${b[0]}')">
-      ${b[1]}<i>${l.filter(t => has(t.id)).length}/${l.length}</i></button>`;
+      ${b[1]}<i>${l.filter(t => has(t.id)).length}/${l.length}</i>${treeSuggest.some(x => x.id[0] === b[0]) ? '<span class="sugg-dot" title="Contient une recherche conseillée">★</span>' : ''}</button>`;
   }).join('');
 
   // Ère atteinte = la plus haute ère où au moins une techno est développée
@@ -724,7 +781,10 @@ function renderTechSide() {
 
   if (!t) {
     const active = fxText(Object.fromEntries(Object.entries(M).filter(([k]) => k !== 'far' || M.far)));
-    el.innerHTML = `<h3>Bonus actifs</h3>
+    const sg = treeSuggest;
+    el.innerHTML = `<h3>Prochaines recherches conseillées</h3>
+      ${sg.length ? '<ul class="sugg-list">' + sg.map(x => `<li><a onclick="jumpToTech('${x.id}')"><b>${x.id} · ${tname(x.id)}</b> · ${x.rp} PR</a><small>${x.reason}</small></li>`).join('') + '</ul>' : '<p class="muted">Rien de particulier : explorez librement.</p>'}
+      <h3 style="margin-top:16px">Bonus actifs</h3>
       ${active.length
         ? '<ul>' + active.map(x => `<li>${x}</li>`).join('') + '</ul>'
         : '<p class="muted">Aucune technologie développée.</p>'}

@@ -26,7 +26,9 @@ function getModifiers() {
   state.sites.forEach((s, i) => {
     if (!s.colonized || !s.b.spec) return;
     const g = SITES[i].x.global || {};
-    for (const lever in g) if (lever in m) m[lever] += g[lever] * s.b.spec;
+    // L'effet global suit l'efficacité du Gros projet (travailleurs et énergie de sa colonie)
+    const eff = s.eff === undefined ? 1 : s.eff;
+    for (const lever in g) if (lever in m) m[lever] += g[lever] * s.b.spec * eff;
   });
 
   const caps = BALANCE.caps;
@@ -72,7 +74,8 @@ function siteCalc(i) {
 
   // Effectif : population disponible / équipage nécessaire
   const need  = ((n('lab') + n('mine')) * B.staffing.perProducer
-               + n('power') * B.staffing.perPower) * (1 - M.crew);
+               + n('power') * B.staffing.perPower
+               + n('spec') * B.staffing.perProject) * (1 - M.crew);
   const staff = need > 0
     ? Math.max(B.staffing.min, Math.min(B.staffing.max, s.pop / need))
     : 1;
@@ -81,21 +84,23 @@ function siteCalc(i) {
   const energyProduced = n('power') * B.economy.energy.powerPerCentral * sp('power') * (1 + M.energy);
   const energyRequired = n('lab') * B.economy.energy.labUse + n('mine') * B.economy.energy.mineUse
     + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse
-    + (s.project && !s.project.done ? B.economy.energy.projectUse : 0);
+    + (n('spec') + (s.project && !s.project.done ? 1 : 0)) * B.economy.energy.projectUse;
   const energyRatio = energyRequired > 0 ? Math.max(B.economy.energy.deficitFloor, Math.min(1, energyProduced / energyRequired)) : 1;
   const energy = energyRatio * (1 + n('power') * B.economy.powerBonus * (1 + M.power) * sp('power'));
 
-  // Revenus : mines (× effectif) + Gros projet (sans travailleurs), × distance × énergie, + impôt par habitant
-  const bud = (n('mine') * B.economy.mineIncome * sp('mine') * (1 + M.mine) * staff
-             + n('spec') * (x.budget || 0)) * F * energy
+  // Revenus : mines + Gros projet, × distance × effectif × énergie, + impôt par habitant
+  // Mines effectives : 1 + 0,88 + 0,88² + … (rendement décroissant, les mines n'ont pas d'entretien)
+  const q = B.economy.mineDecay, mines = q < 1 ? (1 - Math.pow(q, n('mine'))) / (1 - q) : n('mine');
+  const bud = (mines * B.economy.mineIncome * sp('mine') * (1 + M.mine)
+             + n('spec') * (x.budget || 0)) * F * staff * energy
              + s.pop * B.economy.popTax;
 
-  // Recherche : labos (× effectif) + Gros projet
-  const res = (n('lab') * B.economy.labOutput * sp('lab') * (1 + M.lab) * staff
-             + n('spec') * (x.research || 0)) * F * energy;
+  // Recherche : labos + Gros projet
+  const res = (n('lab') * B.economy.labOutput * sp('lab') * (1 + M.lab)
+             + n('spec') * (x.research || 0)) * F * staff * energy;
 
   // Entretien : chaque bâtiment coûte (coût de base × distance × taux)
-  const upk = ARCH.reduce((t, a) => t + n(a.k) * a.c * S.d * B.economy.upkeepRate, 0) * upkeepMult(i);
+  const upk = ARCH.reduce((t, a) => t + n(a.k) * upkeepOf(i, a), 0);
 
   return {
     pop: s.pop,
@@ -232,7 +237,21 @@ function contractPayout(c) {
 /* Entretien annuel d'un seul bâtiment de type a sur le site i (même formule que siteCalc) */
 /* Gigantisme : plus une colonie compte de bâtiments, plus chacun coûte à entretenir */
 const upkeepMult = i => 1 + BALANCE.economy.upkeepScale * Object.values(state.sites[i].b).reduce((a, b) => a + b, 0);
-const upkeepOf = (i, a) => a.c * SITES[i].d * BALANCE.economy.upkeepRate * upkeepMult(i);
+const earnsMoney = (i, a) => a.k === 'mine' || (a.k === 'spec' && !!SITES[i].x.budget);
+const upkeepOf = (i, a) => earnsMoney(i, a) ? 0
+  : (a.project ? a.c * BALANCE.costs.projectMult : a.c) * SITES[i].d * BALANCE.economy.upkeepRate * upkeepMult(i);
+
+/* Efficacité de chaque Gros projet achevé = min(effectif, énergie) de sa colonie.
+   Mise en cache dans state.sites[i].eff (lue par getModifiers, ce qui évite une récursion) ;
+   deux passes suffisent à stabiliser (un Gros projet peut doper l'énergie de sa propre colonie). */
+function refreshProjectEfficiency() {
+  for (let pass = 0; pass < 2; pass++)
+    state.sites.forEach((s, i) => {
+      if (!s.colonized || !s.b.spec) { delete s.eff; return; }
+      const c = siteCalc(i);
+      s.eff = Math.max(0, Math.min(1, c.staff, c.energyRatio));
+    });
+}
 
 /* Énergie consommée par un bâtiment de type k (0 pour les centrales) */
 const ENERGY_KEY = { lab: 'labUse', mine: 'mineUse', farm: 'farmUse', hab: 'habUse' };
@@ -240,4 +259,4 @@ const energyUseOf = k => ENERGY_KEY[k] ? BALANCE.economy.energy[ENERGY_KEY[k]] :
 
 /* Travailleurs requis par un bâtiment de type k (avant bonus « crew ») */
 const workersOf = k => (k === 'lab' || k === 'mine') ? BALANCE.staffing.perProducer
-  : k === 'power' ? BALANCE.staffing.perPower : 0;
+  : k === 'power' ? BALANCE.staffing.perPower : k === 'spec' ? BALANCE.staffing.perProject : 0;

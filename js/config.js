@@ -104,6 +104,7 @@ const BALANCE = {
   staffing: {
     perProducer: 20,    // travailleurs requis par labo ou mine
     perPower: 10,       // travailleurs requis par centrale
+    perProject: 30,     // travailleurs requis par Gros projet achevé
     min: 0.2,           // effectif plancher (20 %)
     max: 1.0,           // effectif plafond (plus de bonus de sureffectif)
   },
@@ -111,16 +112,19 @@ const BALANCE = {
   // --- Économie -------------------------------------------------------
   economy: {
     mineIncome: 3,      // M/an par mine (× spéc × F × effectif × énergie)
+    mineDecay: 0.88,    // filons de moins en moins riches : la k-ième mine d'une colonie rapporte 0,88^(k−1)
     labOutput: 3.6,       // RP/an par labo (× spéc × F × effectif × énergie)
     popTax: 0.08,       // M/an par habitant (non multiplié par F)
     powerBonus: 0.15,   // bonus de production par centrale, après bilan énergétique
     energy: {
       powerPerCentral: 12,  // unités d'énergie produites/an par centrale
-      labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1, projectUse: 4,
+      labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1,
+      projectUse: 6,       // un Gros projet consomme en chantier ET une fois achevé
       deficitFloor: 0.35,  // une colonie déficitaire conserve au moins 35 % de sa production
     },
     upkeepRate: 0.055,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 5,5 %
     upkeepScale: 0.05,   // gigantisme : +5 % d'entretien par bâtiment déjà présent dans la colonie
+    // Les bâtiments qui RAPPORTENT de l'argent (mines, Gros projets à revenus) n'ont pas d'entretien.
     deficitConfPenalty: 2, // perte de confiance si le budget passe sous 0 (le budget est remis à 0)
   },
 
@@ -275,7 +279,7 @@ const ARCH = [
   { k:'lab',   ic:'⚗', c:22, tech:'I01' },       // labo : recherche (Automatisation industrielle)
   { k:'mine',  ic:'⛏', c:25, tech:'M01' },       // mine : budget (ISRU lunaire)
   { k:'power', ic:'⚡', c:28, tech:'E01' },       // énergie : bonus % de production du site
-  { k:'spec',  ic:'✦', c:180, max:1, project:true },  // Gros projet : coût élevé, chantier pluriannuel, sans travailleurs
+  { k:'spec',  ic:'✦', c:180, max:1, project:true },  // Gros projet : coût élevé, chantier pluriannuel, travailleurs + énergie
 ];
 
 

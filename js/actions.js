@@ -129,6 +129,7 @@ function nextYear() {
   if (state.event) { showEvent(); return; }                         // l'événement doit être tranché
   if (state.offer && state.offer.length) { showDraft(); return; }   // le draft ONU aussi
 
+  refreshProjectEfficiency();
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
   yearEvents = [];

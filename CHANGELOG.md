@@ -1,5 +1,12 @@
 # Journal des modifications
 
+## v1.3 : retours de Florian
+
+- **Bug** : les boutons « Rechercher », « Objectifs » et « Voir » de la liste « À décider » ne faisaient rien (JavaScript mal échappé dans l'attribut onclick). Remplacés par `goToView()` / `goToTech()`.
+- **Recherches conseillées** : jusqu'à 5 technologies développables tout de suite, chacune avec sa raison (débloque les mines, Gros projet de Mars, objectif ONU, ouvre la route de Cérès…). Affichées dans « À décider », en tête du panneau de l'arbre, et marquées « ★ conseillée » sur les cartes et les onglets.
+- **Gros projets exigeants** : 30 travailleurs et 6 d'énergie en permanence (plus seulement pendant le chantier). Leur effet global suit leur efficacité (min de l'effectif et de l'énergie de la colonie), signalée sur la carte et dans « À décider ».
+- **Entretien** : les mines et les Gros projets à revenus n'en ont plus. En contrepartie, les filons s'appauvrissent : la k-ième mine d'une colonie rapporte 0,88^(k−1).
+
 ## v1.2 : rendre le prototype convaincant
 
 Constats (bot + partie test) : effectif toujours à 120 %, chaque planète exigeait 4 à 6 branches, objectifs ONU validés « en passant » et sans enjeu, Gros projets anecdotiques, premier écran sans décision.

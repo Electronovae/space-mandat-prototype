@@ -1297,3 +1297,13 @@ b.glob { color: var(--lime); font-weight: 500; }
 .event-opt { text-align: left; display: flex; flex-direction: column; gap: 3px; }
 .event-opt small { font-size: 10px; opacity: .8; }
 .event-opt:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* ===== Recherches conseillées ===== */
+.tn-id .sugg { color: var(--yellow); font-size: 8px; margin-left: 4px; letter-spacing: .04em; }
+.sugg-dot { color: var(--yellow); margin-left: 5px; font-size: 10px; }
+.sugg-list { list-style: none; padding: 0 !important; margin: 0 0 6px; }
+.sugg-list li { border-left: 2px solid var(--yellow); padding: 4px 8px; margin: 5px 0; background: #13261f; }
+.sugg-list a { cursor: pointer; color: var(--ink); }
+.sugg-list a:hover b { color: var(--lime); }
+.sugg-list small { display: block; color: var(--muted); font-size: 10px; }
+.todo-item b { color: var(--yellow); font-weight: 500; }
