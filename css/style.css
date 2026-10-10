@@ -1307,3 +1307,14 @@ b.glob { color: var(--lime); font-weight: 500; }
 .sugg-list a:hover b { color: var(--lime); }
 .sugg-list small { display: block; color: var(--muted); font-size: 10px; }
 .todo-item b { color: var(--yellow); font-weight: 500; }
+
+/* ===== Mégastructures ===== */
+.mega-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.mega-card { border: 1px solid var(--line); background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 8px; border-radius: 6px; }
+.mega-card.done { border-color: var(--lime); background: #16291f; }
+.mega-card.lock { opacity: .6; }
+.mega-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.mega-top h3 { font-size: 15px; margin: 0; }
+.mega-card p { font-size: 11px; line-height: 1.5; }
+.mega-fx { margin: 0; padding-left: 16px; color: var(--lime); font-size: 11px; line-height: 1.6; }
+.mega-meta { color: var(--muted); font-size: 10px; margin-top: auto; }

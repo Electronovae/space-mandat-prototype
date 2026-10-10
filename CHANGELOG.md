@@ -1,5 +1,13 @@
 # Journal des modifications
 
+## v1.4 : mégastructures et draft honnête
+
+- **Mégastructures** (nouvel onglet) : 6 projets de civilisation, payés au lancement, chantier de 6 à 15 ans, effets appliqués au-delà des plafonds des technologies, points au bilan final.
+  Réseau énergétique interplanétaire (E05, 600 M) · Anneau orbital terrestre (M06, 1 500 M) · Cité orbitale de l'ONU (S07, 2 500 M) · Calculateur matriochka (I12, 5 000 M) · Essaim de Dyson (E09, 9 000 M) · Vaisseau-monde (P18, 14 000 M).
+- **Énergie unifiée** : une fois le réseau achevé, toutes les colonies partagent un seul bilan énergétique ; le surplus d'un astre couvre le déficit d'un autre.
+- **Draft** : un objectif « Ambitieux » ou « Audacieux » ne peut plus être proposé s'il est déjà rempli à plus de 30 % (60 % pour « Facile »). Vérifié sur 40 parties : 0 cas sur 525 propositions.
+- Bot : 3 à 5 mégastructures achevées en 80 ans ; la trésorerie de fin de partie ne dort plus (8 000 à 28 000 M au lieu de 30 000 à 80 000 M).
+
 ## v1.3 : retours de Florian
 
 - **Bug** : les boutons « Rechercher », « Objectifs » et « Voir » de la liste « À décider » ne faisaient rien (JavaScript mal échappé dans l'attribut onclick). Remplacés par `goToView()` / `goToTech()`.

@@ -50,6 +50,7 @@ function render() {
   renderActivity();
   renderOps();
   renderContracts();
+  renderMega();
   if ($('tech').classList.contains('active')) renderTree();
   if (typeof guideTick === 'function') guideTick();
 }
@@ -349,7 +350,7 @@ function renderOps() {
         <details class="build-menu" ${open ? 'open' : ''} ontoggle="toggleBuild(${i}, this.open)"><summary>Construire / détruire</summary>
         <div class="build-list">${ARCH.map((a, j) => buildRow(i, a, j, M, c)).join('')}</div></details>
         <div class="build-total">
-          <div>ÉNERGIE <b>${R(c.energyProduced, 1)} produite / ${R(c.energyRequired, 1)} consommée</b> · <b class="${c.energyRatio < 1 ? 'negative' : 'positive'}">${Math.round(c.energyRatio * 100)} % couvert</b>${c.energyRatio < 1 && ((s.b.mine || 0) + (s.b.lab || 0) + (s.b.spec || 0) || s.project) ? ' <em class="warn">· mines, labos et Gros projet ralentis : construisez une centrale</em>' : ''}</div>
+          <div>ÉNERGIE <b>${R(c.energyProduced, 1)} produite / ${R(c.energyRequired, 1)} consommée</b> · <b class="${c.energyRatio < 1 ? 'negative' : 'positive'}">${Math.round(c.energyRatio * 100)} % couvert</b>${c.pooled ? ' <b class="glob">(réseau interplanétaire : bilan commun à toutes les colonies)</b>' : ''}${c.energyRatio < 1 && ((s.b.mine || 0) + (s.b.lab || 0) + (s.b.spec || 0) || s.project) ? ' <em class="warn">· mines, labos et Gros projet ralentis : construisez une centrale</em>' : ''}</div>
           <div>VIVRES <b>${c.places} places</b> · <b>${c.food} rations/an</b> → population max <b>${c.cap}</b></div>
           <div>BILAN <b class="positive">+${R(c.bud, 1)}M/an</b> revenus · <b class="negative">−${R(Math.abs(c.upk), 1)}M/an</b> entretien · <b class="positive">+${R(c.res, 1)} PR/an</b></div>
         </div>`;
@@ -386,6 +387,30 @@ function renderOps() {
       <div class="distance">${where}rendement ×${R(F, 1)} <span class="tip" title="Plus un astre est loin, plus ses mines, labos et Gros projet rapportent (mais coûtent et s’entretiennent plus cher).">ⓘ</span> · ${S.tag}</div>
       <div class="site-tag">✦ Gros projet : <b>${S.nm[5]}</b>${s.b.spec ? ' (achevé)' : ''} · ${projectTxt(i, M)}${has(S.st) ? '' : ' · requiert ' + S.st}</div>
       <div class="site-meta">${meta}</div>${body}</article>`;
+  }).join('');
+}
+
+/* =====================================================================
+   MÉGASTRUCTURES
+   ===================================================================== */
+function renderMega() {
+  const done = MEGA.filter(m => state.mega[m.id] && state.mega[m.id].done).length;
+  $('megaCount').textContent = done + ' / ' + MEGA.length + ' ACHEVÉES';
+  $('megaList').innerHTML = MEGA.map(m => {
+    const g = state.mega[m.id], unlocked = has(m.tech);
+    const br = BRANCHES.find(b => b[0] === m.tech[0]);
+    let action;
+    if (g && g.done) action = '<span class="tag green">ACHEVÉE</span>';
+    else if (g) action = `<div class="bar"><i style="width:${g.progress / m.years * 100}%"></i></div><button class="btn warning" disabled>Chantier · ${g.progress}/${m.years} ans</button>`;
+    else if (!unlocked) action = `<button class="btn" onclick="goToTech('${m.tech}')">Requiert ${m.tech} · ${tname(m.tech)}</button>`;
+    else action = `<button class="btn primary ${state.budget >= m.cost ? '' : 'short'}" onclick="buildMega('${m.id}')">Lancer · ${money(m.cost)}</button>`;
+    return `<article class="mega-card ${g && g.done ? 'done' : ''} ${!unlocked && !g ? 'lock' : ''}">
+      <div class="mega-top"><h3>${m.name}</h3><a class="req ${unlocked ? 'ok' : ''}" style="--c:${br[2]}" onclick="goToTech('${m.tech}')">${m.tech}${unlocked ? ' ✓' : ''}</a></div>
+      <p class="muted">${m.desc}</p>
+      <ul class="mega-fx">${fxText(m.fx).map(t => `<li>${t}</li>`).join('')}</ul>
+      <div class="mega-meta">${money(m.cost)} · chantier de ${m.years} ans · +${m.score} points au bilan</div>
+      ${action}
+    </article>`;
   }).join('');
 }
 
@@ -577,6 +602,10 @@ function renderTodo() {
       add('', `${S.n} : Gros projet « ${S.nm[5]} » disponible (${money(bCost(i, ARCH[5]))}).`, `goToSite(${i})`, 'Voir');
   });
 
+  MEGA.forEach(m => {
+    if (!state.mega[m.id] && has(m.tech) && state.budget >= m.cost)
+      add('', `Mégastructure possible : <b>${m.name}</b> (${money(m.cost)}, ${m.years} ans).`, "goToView('mega')", 'Voir');
+  });
   const affordable = TECH.filter(t => !has(t.id) && ready(t) && state.rp >= t.rp);
   techSuggestions(2).forEach(sg => add('', `Recherche conseillée : <b>${sg.id} · ${tname(sg.id)}</b> (${sg.rp} PR${state.rp >= sg.rp ? '' : ', il manque ' + R(sg.rp - state.rp, 0)}) → ${sg.reason}.`, `goToTech('${sg.id}')`, 'Voir'));
   if (affordable.length) add('', `${affordable.length} technologie${affordable.length > 1 ? 's' : ''} abordable${affordable.length > 1 ? 's' : ''} avec vos ${R(state.rp, 0)} PR.`, "goToView('tech')", 'Rechercher');

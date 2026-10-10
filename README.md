@@ -20,7 +20,7 @@ index.html            page unique (structure + ordre de chargement des scripts)
 css/style.css         styles (palette dans :root)
 js/
   data/techs.js       les 108 technologies (nom, ère, coût, prérequis, textes)
-  config.js           ⭐ ÉQUILIBRAGE : BALANCE (dont fenêtre de départ), SITES, ARCH, effets des techs, CONTRACT_POOL
+  config.js           ⭐ ÉQUILIBRAGE : BALANCE (dont fenêtre de départ), SITES, ARCH, MEGA, effets des techs, CONTRACT_POOL
   utils.js            helpers de formatage, notifications
   state.js            état de la partie + génération des effets de technologies
   mechanics.js        formules de calcul (revenus, population, coûts…) — sans DOM

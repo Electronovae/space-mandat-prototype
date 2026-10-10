@@ -54,6 +54,7 @@ function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizo
     tech: [],
     contracts: [],
     effects: [],        // effets temporaires des événements : { lever, value, until, label }
+    mega: {},           // mégastructures : { id: { progress, done } }
     event: null,        // événement en attente de décision
     nextEvent: S.year + BALANCE.events.firstMin
              + Math.floor(Math.random() * (BALANCE.events.firstMax - BALANCE.events.firstMin + 1)),
@@ -107,6 +108,21 @@ function drawContract(st) {
   return addContract(st, makeProposal(st, pool[Math.floor(Math.random() * pool.length)], 'medium'));
 }
 
+/* Avancement actuel (0 à 1) d'une proposition : sert à ne pas présenter comme « ambitieux »
+   un objectif déjà presque rempli. Objectifs chiffrés : valeur / cible du palier.
+   Objectifs de technologie : part de la chaîne de prérequis déjà développée. */
+function proposalProgress(st, p) {
+  const def = CONTRACT_BY_ID[p.id];
+  if (def.val) return Math.max(0, def.val(st)) / (p.target || def.target);
+  const m = def.name.match(/\(([EPMVIS]\d\d)\)/);
+  if (m) {
+    const seen = new Set(), stack = [m[1]];
+    while (stack.length) { const id = stack.pop(); if (seen.has(id)) continue; seen.add(id); stack.push(...TECH.find(t => t.id === id).prerequisites); }
+    return [...seen].filter(id => st.tech.includes(id)).length / seen.size;
+  }
+  return 0;
+}
+
 /* Draft : 3 objectifs de difficulté croissante (récompense de base faible → forte).
    On pioche un objectif dans chaque tiers du pool trié ; le palier multiplie récompense et pénalité. */
 function makeOffer(st) {
@@ -114,11 +130,17 @@ function makeOffer(st) {
   if (!pool.length) return null;
   const n = Math.min(BALANCE.contracts.draftSize, pool.length), tiers = ['easy', 'medium', 'hard'].slice(3 - n);
   const picks = [];
+  const maxP = BALANCE.contracts.maxProgress;
   for (let k = 0; k < n; k++) {
+    const tier = tiers[k];
     const lo = Math.floor(k * pool.length / n), hi = Math.floor((k + 1) * pool.length / n);
-    const slice = pool.slice(lo, Math.max(hi, lo + 1)).filter(d => !picks.some(p => p.id === d.id));
-    if (slice.length) picks.push(makeProposal(st, slice[Math.floor(Math.random() * slice.length)], tiers[k]));
+    // Candidats du tiers de difficulté, sinon tout le pool ; on écarte ceux déjà trop avancés
+    const fits = d => !picks.some(p => p.id === d.id) && proposalProgress(st, makeProposal(st, d, tier)) <= maxP[tier];
+    let cands = pool.slice(lo, Math.max(hi, lo + 1)).filter(fits);
+    if (!cands.length) cands = pool.filter(fits);
+    if (cands.length) picks.push(makeProposal(st, cands[Math.floor(Math.random() * cands.length)], tier));
   }
+  if (!picks.length) return null;
   st.offer = picks;
   return picks;
 }

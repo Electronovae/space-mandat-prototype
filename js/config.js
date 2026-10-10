@@ -40,6 +40,8 @@ const BALANCE = {
     offerEvery: 5,      // tous les N ans, l'ONU propose un DRAFT de 3 objectifs (on en choisit 1)…
     maxActive: 5,       // …tant qu'il y en a moins de N d'actifs
     draftSize: 3,
+    // Avancement maximal d'un objectif au moment où il est proposé (sinon il n'a rien d'« ambitieux »)
+    maxProgress: { easy: 0.6, medium: 0.3, hard: 0.3 },
     refusePenalty: 3,   // refuser l'offre coûte de la confiance
     // Paliers du draft : multiplicateurs de récompense et de pénalité
     tiers: {
@@ -283,6 +285,34 @@ const ARCH = [
 ];
 
 
+/* ---------------------------------------------------------------------
+   MÉGASTRUCTURES : projets de civilisation, hors de tout astre
+   Des dépenses de fin de partie qui changent les règles. Une seule fois chacune.
+     id, name, tech (requise), cost (M, payé au lancement), years (chantier),
+     fx    leviers ajoutés à toutes les colonies, APRÈS les plafonds des technologies
+           (leviers de ZERO, plus grid: 1 = énergie mutualisée entre toutes les colonies)
+     desc  ce que ça change, en clair
+     score points ajoutés au bilan de fin de mandat
+   --------------------------------------------------------------------- */
+const MEGA = [
+  { id: 'grid',   name: 'Réseau énergétique interplanétaire', tech: 'E05', cost: 600,   years: 6,  score: 150,
+    fx: { grid: 1 }, desc: 'Relie les colonies par faisceaux : l’énergie est mise en commun, le surplus d’un astre couvre le déficit d’un autre.' },
+  { id: 'ring',   name: 'Anneau orbital terrestre',           tech: 'M06', cost: 1500,  years: 8,  score: 250,
+    fx: { launch: 0.25, build: 0.15, flat: 40 }, desc: 'Un anneau de lancement autour de la Terre : missions et bâtiments bien moins chers, commerce orbital.' },
+  { id: 'onu',    name: 'Cité orbitale de l’ONU',             tech: 'S07', cost: 2500,  years: 8,  score: 300,
+    fx: { grant: 1, conf: 1 }, desc: 'Le siège de l’ONU s’installe en orbite : subvention doublée et confiance qui remonte chaque année.' },
+  { id: 'matrio', name: 'Calculateur matriochka',             tech: 'I12', cost: 5000,  years: 10, score: 400,
+    fx: { rate: 150, lab: 0.5 }, desc: 'Des coquilles de calcul autour du Soleil : la recherche change d’échelle.' },
+  { id: 'dyson',  name: 'Essaim de Dyson',                    tech: 'E09', cost: 9000,  years: 12, score: 500,
+    fx: { energy: 2, flat: 150 }, desc: 'Des millions de collecteurs captent une fraction du Soleil : énergie triplée partout.' },
+  { id: 'ship',   name: 'Vaisseau-monde',                     tech: 'P18', cost: 14000, years: 15, score: 700,
+    fx: { travel: 0.4, conf: 1.5, cap: 0.5 }, desc: 'Une cité de génération lancée vers les étoiles : trajets raccourcis, places supplémentaires partout, fierté de l’humanité.' },
+];
+const MEGA_BY_ID = Object.fromEntries(MEGA.map(m => [m.id, m]));
+// Plafonds relevés par les mégastructures (au-delà de ceux des technologies)
+const MEGA_CAPS = { launch: 0.75, build: 0.65, travel: 0.8 };
+
+
 // Nom générique et rôle de chaque type de bâtiment (affiché à côté du nom propre à l'astre)
 const ARCH_INFO = {
   hab:   { cat: 'Logement',    role: 'places pour les habitants' },
@@ -365,7 +395,8 @@ const ZERO = {
   rate:0, lab:0, mine:0, flat:0, launch:0, travel:0, build:0,
   cap:0, grow:0, food:0, power:0, conf:0, far:0, crew:0, reward:0,
   energy:0,   // +% énergie produite par les centrales (Gros projets, événements)
-  grant:0,    // +% subvention ONU (événements uniquement)
+  grant:0,    // +% subvention ONU (événements, Cité orbitale de l'ONU)
+  grid:0,     // 1 = énergie mutualisée entre colonies (Réseau énergétique interplanétaire)
 };
 
 

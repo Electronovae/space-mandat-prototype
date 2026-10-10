@@ -27,11 +27,12 @@
       <button data-view="operations">⌁ &nbsp; Opérations</button>
       <button data-view="contracts">⊙ &nbsp; Objectifs ONU <span class="nav-badge" id="navBadge"></span></button>
       <button data-view="tech">⌘ &nbsp; Arbre technologique</button>
+      <button data-view="mega">✺ &nbsp; Mégastructures</button>
     </nav>
     <div class="side-foot">
       SECTEUR SOLAIRE · A-01<br>
       Mandat actif · <span style="color:var(--lime)" id="mandateLen">80 ans</span><br><br>
-      v1.3 prototype<br>Simulation locale
+      v1.4 prototype<br>Simulation locale
     </div>
   </aside>
 
@@ -143,6 +144,15 @@
       <div class="contracts" id="contractsList"></div>
     </div>
 
+    <!-- ============================ VUE : MÉGASTRUCTURES ============================ -->
+    <div id="mega" class="view">
+      <div class="section-head">
+        <div><h2>Mégastructures</h2><p>Des projets de civilisation qui changent les règles du jeu. Très chers, longs à bâtir, une seule fois chacun. Leurs effets s’ajoutent au-delà des plafonds des technologies.</p></div>
+        <span class="tag green" id="megaCount">0 / 6</span>
+      </div>
+      <div class="mega-grid" id="megaList"></div>
+    </div>
+
     <!-- ============================ VUE : ARBRE TECHNOLOGIQUE ============================ -->
     <div id="tech" class="view">
       <div class="section-head">
@@ -218,6 +228,8 @@
       <p>Les centrales produisent de l’énergie, les autres bâtiments en consomment. Si la colonie manque d’énergie, toute sa production baisse (jusqu’à 35 %). Chaque centrale ajoute aussi un petit bonus de production.</p></details>
     <details><summary>Gros projets</summary>
       <p>Chaque astre a un Gros projet unique (indiqué sur sa carte) : cher, 5 ans de chantier, puis il demande <b>30 travailleurs et de l’énergie</b> en permanence. Son effet s’applique à <b>toutes vos colonies</b> (trajets, coûts, mines, énergie…), au prorata de son efficacité : une colonie en sous-effectif ou sans courant affaiblit le bonus.</p></details>
+    <details><summary>Mégastructures</summary>
+      <p>En milieu et fin de partie, de grands projets deviennent possibles : réseau énergétique interplanétaire (l’énergie est mise en commun entre colonies), anneau orbital, cité de l’ONU, calculateur matriochka, essaim de Dyson, vaisseau-monde. Ils se paient d’un coup et se construisent en plusieurs années.</p></details>
     <details><summary>Événements</summary>
       <p>Tous les 2 à 7 ans, un événement survient : centrale qui explose, épidémie, filon épuisé, crise financière… ou percée scientifique, mécène, gisement exceptionnel. Souvent, vous pouvez payer pour limiter les dégâts. Les effets temporaires en cours sont listés dans le rapport de l’année.</p></details>
     <details><summary>Stratégie de recherche</summary>

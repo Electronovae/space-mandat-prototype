@@ -43,6 +43,7 @@ const FX_LABELS = {
   reward: v => `+${pc(v)} récompenses d’objectifs`,
   energy: v => `${v < 0 ? '−' : '+'}${pc(Math.abs(v))} énergie produite par les centrales`,
   grant:  v => `${v < 0 ? '−' : '+'}${pc(Math.abs(v))} subvention ONU`,
+  grid:   () => 'énergie mutualisée entre toutes les colonies',
 };
 
 function fxText(effects) {

@@ -22,7 +22,7 @@ function makeGame(seed) {
   for (const f of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js','js/events.js'])
     vm.runInContext(fs.readFileSync(`${root}/${f}`, 'utf8'), ctx, { filename: f });
   vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; globalThis.showDraft = () => {}; globalThis.showEvent = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
-    globalThis.__g = { get state(){ return state; }, acceptOffer, resolveEvent, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
+    globalThis.__g = { get state(){ return state; }, acceptOffer, resolveEvent, buildMega, MEGA, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
       missionCost, bCost, missingReqs, ready, has, TECH, SITES, ARCH, CONTRACT_BY_ID };`, ctx);
   return ctx.__g;
 }
@@ -59,6 +59,8 @@ function play(budget, horizon, seed, log = false) {
         g.build(i, pick);
       }
     });
+    // Mégastructures : dès que la techno est là et qu'il reste une marge
+    g.MEGA.forEach(m => { if (!st().mega[m.id] && g.has(m.tech) && st().budget > m.cost * 1.2) g.buildMega(m.id); });
     // Gros projets : dès que la techno et le budget le permettent
     st().sites.forEach((s, i) => {
       if (!s.colonized || s.b.spec || s.project || !g.has(g.SITES[i].st)) return;
@@ -70,7 +72,7 @@ function play(budget, horizon, seed, log = false) {
       .sort((a, b) => g.missionCost(a) - g.missionCost(b));
     if (cand.length && st().budget > g.missionCost(cand[0]) + 60) g.launch(cand[0]);
     const T = g.totals();
-    rows.push({ an: st().year, budget: Math.round(st().budget), net: +(T.bud - T.upk).toFixed(1), rp: +T.res.toFixed(1),
+    rows.push({ mega: Object.keys(st().mega || {}).filter(k => st().mega[k].done).length, an: st().year, budget: Math.round(st().budget), net: +(T.bud - T.upk).toFixed(1), rp: +T.res.toFixed(1),
       pop: Math.round(T.pop), conf: +st().confidence.toFixed(1), col: st().sites.filter(s => s.colonized).length, tech: st().tech.length });
     if (st().event) { if (!g.resolveEvent(0)) g.resolveEvent(1); }   // le bot paie s'il peut
     if (st().offer) g.acceptOffer(Math.min(+(process.env.TIER ?? 1), st().offer.length - 1));   // palier choisi (TIER=0,1,2 ; défaut : ambitieux)

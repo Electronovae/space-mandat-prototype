@@ -100,6 +100,18 @@ function demolish(i, k) {
   render();
 }
 
+/* Lancer une mégastructure (paiement complet au lancement, chantier de plusieurs années) */
+function buildMega(id) {
+  const m = MEGA_BY_ID[id];
+  if (!m || state.mega[id]) return;
+  if (!has(m.tech)) { toast('Technologie requise : ' + m.tech + ' · ' + tname(m.tech)); return; }
+  if (state.budget < m.cost) { toast('Budget insuffisant pour cette mégastructure.'); return; }
+  state.budget -= m.cost;
+  state.mega[id] = { progress: 0, done: false };
+  toast('Chantier lancé : ' + m.name + ' (' + m.years + ' ans)', 'info');
+  render();
+}
+
 /* Développer une technologie (dépense des points de recherche) */
 function researchTech(id) {
   const t = TECH.find(x => x.id === id);
@@ -158,6 +170,13 @@ function nextYear() {
       logEvent('Gros projet achevé : ' + SITES[i].nm[5] + ' (' + SITES[i].n + ')', 'good');
     }
   });
+
+  // Mégastructures en chantier
+  for (const id in state.mega) {
+    const g = state.mega[id];
+    if (g.done) continue;
+    if (++g.progress >= MEGA_BY_ID[id].years) { g.done = true; logEvent('Mégastructure achevée : ' + MEGA_BY_ID[id].name, 'good'); }
+  }
 
   // 3. Population : décroît vers la capacité si dépassée, sinon croît
   state.sites.forEach((s, i) => {
@@ -246,6 +265,7 @@ function mandateScore(st = state) {
     ['Technologies', st.tech.length, 10],
     ['Objectifs réussis', won, 60],
     ['Confiance finale', Math.round(st.confidence), 5],
+    ['Mégastructures (points)', Object.keys(st.mega || {}).filter(id => st.mega[id].done).reduce((t, id) => t + MEGA_BY_ID[id].score, 0), 1],
   ];
   return { parts, total: parts.reduce((t, [, n, w]) => t + n * w, 0) };
 }
@@ -266,6 +286,7 @@ function load() {
   state.sites.forEach(s => { if (s.project === undefined) s.project = null; s.b = s.b || {}; });
   state.contracts = state.contracts || [];
   state.effects = state.effects || [];
+  state.mega = state.mega || {};
   if (state.nextEvent === undefined) state.nextEvent = state.year + 3;
   render();
   toast('Sauvegarde chargée.');

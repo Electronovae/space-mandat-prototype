@@ -40,6 +40,16 @@ function getModifiers() {
   m.lab    = Math.min(caps.lab,    m.lab);
   m.mine   = Math.min(caps.mine,   m.mine);
   m.conf   = Math.min(caps.conf,   m.conf);
+
+  // Mégastructures achevées : appliquées APRÈS les plafonds (elles changent l'échelle du jeu)
+  for (const id in state.mega || {}) {
+    if (!state.mega[id].done) continue;
+    const fx = MEGA_BY_ID[id].fx;
+    for (const lever in fx) if (lever in m) m[lever] += fx[lever];
+  }
+  m.launch = Math.min(MEGA_CAPS.launch, m.launch);
+  m.build  = Math.min(MEGA_CAPS.build,  m.build);
+  m.travel = Math.min(MEGA_CAPS.travel, m.travel);
   return m;
 }
 
@@ -85,7 +95,11 @@ function siteCalc(i) {
   const energyRequired = n('lab') * B.economy.energy.labUse + n('mine') * B.economy.energy.mineUse
     + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse
     + (n('spec') + (s.project && !s.project.done ? 1 : 0)) * B.economy.energy.projectUse;
-  const energyRatio = energyRequired > 0 ? Math.max(B.economy.energy.deficitFloor, Math.min(1, energyProduced / energyRequired)) : 1;
+  // Réseau énergétique interplanétaire : un seul bilan pour toutes les colonies
+  const pooled = gridOn() ? energyPool(M) : null;
+  const ratioRaw = pooled ? (pooled.req > 0 ? pooled.prod / pooled.req : 1)
+                          : (energyRequired > 0 ? energyProduced / energyRequired : 1);
+  const energyRatio = (pooled ? pooled.req : energyRequired) > 0 ? Math.max(B.economy.energy.deficitFloor, Math.min(1, ratioRaw)) : 1;
   const energy = energyRatio * (1 + n('power') * B.economy.powerBonus * (1 + M.power) * sp('power'));
 
   // Revenus : mines + Gros projet, × distance × effectif × énergie, + impôt par habitant
@@ -112,7 +126,7 @@ function siteCalc(i) {
     used: Object.values(s.b).reduce((a, b) => a + b, 0) + (s.project && !s.project.done ? 1 : 0),
     staff, bud, res, upk,
     conf: n('spec') * (x.conf || 0),
-    energyProduced, energyRequired, energyRatio,
+    energyProduced, energyRequired, energyRatio, pooled: !!pooled,
     project: s.project,
   };
 }
@@ -122,10 +136,30 @@ function siteCalc(i) {
    bud = revenus · upk = entretien · res = recherche · pop = population
    conf = variation annuelle de confiance
    --------------------------------------------------------------------- */
+/* Réseau énergétique : actif quand la mégastructure « grid » est achevée */
+const gridOn = () => !!(state.mega && state.mega.grid && state.mega.grid.done);
+
+/* Bilan énergétique brut d'une colonie (mêmes formules que siteCalc, sans récursion) */
+function siteEnergy(i, M) {
+  const S = SITES[i], s = state.sites[i], E = BALANCE.economy.energy, n = k => s.b[k] || 0;
+  const prod = n('power') * E.powerPerCentral * (S.sp.power || 1) * (1 + M.energy);
+  const req = n('lab') * E.labUse + n('mine') * E.mineUse + n('farm') * E.farmUse + n('hab') * E.habUse
+            + (n('spec') + (s.project && !s.project.done ? 1 : 0)) * E.projectUse;
+  return { prod, req };
+}
+function energyPool(M) {
+  return state.sites.reduce((t, s, i) => {
+    if (!s.colonized) return t;
+    const e = siteEnergy(i, M);
+    return { prod: t.prod + e.prod, req: t.req + e.req };
+  }, { prod: 0, req: 0 });
+}
+
 /* Subvention annuelle de l'ONU (dépend de la confiance) */
 function grantNow(st = state) {
   const G = BALANCE.grant;
-  const boost = (st.effects || []).filter(e => e.lever === 'grant' && e.until > st.year).reduce((t, e) => t + e.value, 0);
+  const boost = (st.effects || []).filter(e => e.lever === 'grant' && e.until > st.year).reduce((t, e) => t + e.value, 0)
+              + Object.keys(st.mega || {}).filter(id => st.mega[id].done).reduce((t, id) => t + (MEGA_BY_ID[id].fx.grant || 0), 0);
   return G.perPoint * Math.max(0, st.confidence - G.floor) * (1 + G.growth * (st.year - st.startYear)) * Math.max(0, 1 + boost);
 }
 
