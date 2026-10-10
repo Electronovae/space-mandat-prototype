@@ -43,7 +43,7 @@ const BALANCE = {
     //   conf   = + confiance ONU (reward points)
     //   budget = + trésorerie (M)        rp = + points de recherche
     rewardWeights: { conf: 4, budget: 3, rp: 3 },   // probabilités relatives
-    rewardValue:   { budget: 12, rp: 1.6 },         // M ou RP par point de `reward` du contrat
+    rewardValue:   { conf: 0.6, budget: 12, rp: 1.6 }, // confiance, M ou PR par point de `reward` du contrat
     rewardGrowth:  0.025,                           // les montants en M / RP gonflent de +2,5 % par an de mandat
   },
 
@@ -59,9 +59,9 @@ const BALANCE = {
   // Facteur de rendement d'un site  F = distance ^ (exponent + bonus tech "far").
   // F multiplie les revenus des mines/labos/bâtiments spéciaux.
   // Le COÛT (missions, bâtiments, entretien) est lui proportionnel à la distance
-  // (exposant 1) → comme exponent > 1, les astres lointains sont plus rentables.
+  // (exposant 1) → comme exponent > 1, les astres lointains restent plus rentables.
   distance: {
-    exponent: 1.35,
+    exponent: 1.15,     // 1,35 avant : les astres lointains rapportaient trop (emballement de fin de partie)
   },
 
   // --- Colonies -------------------------------------------------------
@@ -73,16 +73,15 @@ const BALANCE = {
   },
 
   // --- Population -----------------------------------------------------
-  // capacité d'accueil (habitants max) = (baseCap + logements×habCap×spéc + serres×farmCap + spécial.cap) × (1+bonus cap)
-  // rations produites = baseFood + logements×habFood + serres×farmFood×spéc × (1+bonus food)
-  // La population maximale réelle = min(capacité d'accueil, rations produites)
+  // Deux limites séparées, lisibles par le joueur :
+  //   places  = (baseCap + logements×habCap×spéc + Gros projet.cap) × (1+bonus cap)   → les LOGEMENTS
+  //   rations = (baseFood + serres×farmFood×spéc) × (1+bonus food)                   → les SERRES
+  // Population maximale réelle = min(places, rations) : l'interface indique laquelle bloque.
   population: {
     baseCap: 30,        // capacité d'accueil de base (habitants max, sans bâtiment)
-    habCap: 40,         // capacité d'accueil maximale ajoutée par logement (habitants)
-    farmCap: 10,        // capacité d'accueil ajoutée par serre (habitants)
-    baseFood: 40,       // rations produites sans bâtiment
-    habFood: 30,        // rations produites par logement (ce n'est pas une population)
-    farmFood: 60,       // rations produites par serre (ce n'est pas une population)
+    habCap: 40,         // places ajoutées par logement (habitants)
+    baseFood: 40,       // rations produites sans serre (1 ration nourrit 1 habitant par an)
+    farmFood: 60,       // rations produites par serre
     growthFlat: 3,      // habitants gagnés par an (fixe)
     growthRate: 0.05,   // + % de la population actuelle par an (× (1+bonus grow))
     declineRate: 0.92,  // si pop > capacité : pop × 0.92 par an (jusqu'à la capacité)
@@ -108,21 +107,28 @@ const BALANCE = {
     energy: {
       powerPerCentral: 12,  // unités d'énergie produites/an par centrale
       labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1, projectUse: 4,
-      deficitFloor: 0.35,  // une colonie déficitaire conserve au moins 25 % de sa production
+      deficitFloor: 0.35,  // une colonie déficitaire conserve au moins 35 % de sa production
     },
-    upkeepRate: 0.055,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 7 %
+    upkeepRate: 0.055,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 5,5 %
     deficitConfPenalty: 2, // perte de confiance si le budget passe sous 0 (le budget est remis à 0)
   },
 
   // --- Coûts ----------------------------------------------------------
   costs: {
     buildGrowth: 0.12,  // chaque bâtiment déjà construit du même type : +12 % au suivant
+    projectMult: 2.5,   // Gros projet = coût de base × 2,5 (×4 avant : jamais rentable)
+    projectYears: 5,    // durée du chantier d'un Gros projet
   },
 
   // --- Confiance ONU (variation annuelle) ----------------------------
+  // L'opinion s'habitue : l'érosion augmente avec le temps, et la population
+  // rapporte de moins en moins (logarithme) → la confiance reste un enjeu toute la partie.
   confidence: {
-    drift: -0.4,        // érosion naturelle par an
-    perPop: 0.002,      // + par habitant (toutes colonies)
+    drift: -0.4,        // érosion naturelle par an au début du mandat
+    driftGrowth: 0.02,  // érosion supplémentaire par année écoulée (−2/an au bout de 80 ans)
+    popGain: 0.8,       // + popGain × log10(1 + population / 100) par an
+    revoke: 0,          // confiance ≤ revoke → mandat révoqué (fin de partie)
+    warn: 20,           // seuil d'alerte affiché au joueur
   },
 
   // --- Plafonds des bonus cumulés des technologies -------------------
@@ -132,6 +138,8 @@ const BALANCE = {
     build: 0.5,         // réduction max du coût des bâtiments
     travel: 0.6,        // réduction max de la durée des trajets
     crew: 0.5,          // réduction max de l'équipage requis
+    far: 0.12,          // bonus max sur l'exposant de distance (sans plafond : emballement)
+    conf: 1.0,          // confiance/an max apportée par les technologies (atteignait +6/an)
   },
 
   // --- Progression des effets de technologies ------------------------
@@ -235,12 +243,23 @@ const SITES = [
    --------------------------------------------------------------------- */
 const ARCH = [
   { k:'hab',   ic:'⌂', c:20 },                   // logement : capacité d'accueil
-  { k:'farm',  ic:'♧', c:18, tech:'V01' },       // serre : nourriture + un peu de capacité
+  { k:'farm',  ic:'♧', c:18 },                  // serre : rations (plus de techno requise : on se retrouvait bloqué)
   { k:'lab',   ic:'⚗', c:22, tech:'I01' },       // labo : recherche (Automatisation industrielle)
   { k:'mine',  ic:'⛏', c:25, tech:'M01' },       // mine : budget (ISRU lunaire)
   { k:'power', ic:'⚡', c:28, tech:'E01' },       // énergie : bonus % de production du site
-  { k:'spec',  ic:'✦', c:180, max:3, project:true },  // Gros projet : coût élevé, chantier pluriannuel
+  { k:'spec',  ic:'✦', c:180, max:3, project:true },  // Gros projet : coût élevé, chantier pluriannuel, sans travailleurs
 ];
+
+
+// Nom générique et rôle de chaque type de bâtiment (affiché à côté du nom propre à l'astre)
+const ARCH_INFO = {
+  hab:   { cat: 'Logement',    role: 'places pour les habitants' },
+  farm:  { cat: 'Serre',       role: 'rations pour nourrir la colonie' },
+  lab:   { cat: 'Laboratoire', role: 'points de recherche' },
+  mine:  { cat: 'Mine',        role: 'revenus (vente des ressources)' },
+  power: { cat: 'Centrale',    role: 'énergie pour les autres bâtiments' },
+  spec:  { cat: 'Gros projet', role: 'bonus majeur propre à l’astre' },
+};
 
 
 /* ---------------------------------------------------------------------
@@ -395,7 +414,7 @@ const CONTRACT_POOL = [
   cNum('tech15', 'Développer 15 technologies',  30, 12, s => s.tech.length, 15, 'technos'),
   cNum('tech40', 'Développer 40 technologies',  50, 20, s => s.tech.length, 40, 'technos', { after: 10 }),
   cNum('tech80', 'Développer 80 technologies',  65, 28, s => s.tech.length, 80, 'technos', { after: 25 }),
-  cNum('rp25',   'Produire 25 RP/an',           35, 14, () => totals().res, 25, 'RP/an'),
+  cNum('rp25',   'Produire 25 PR/an',           35, 14, () => totals().res, 25, 'PR/an'),
   cSite('fusion', 'Maîtriser la fusion magnétique (E04)',           40, 14, s => s.tech.includes('E04')),
   cSite('voile',  'Maîtriser la voile laser (P07)',        45, 16, s => s.tech.includes('P07')),
   cSite('ascens', 'Construire l’ascenseur spatial (M06)',  50, 16, s => s.tech.includes('M06'), { after: 5 }),

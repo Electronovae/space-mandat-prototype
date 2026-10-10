@@ -8,13 +8,17 @@ const pc = v => Math.round(v * 100) + ' %';             // 0.25 → "25 %"
 const R = (n, d = 0) => Number(n).toFixed(d);           // arrondi en texte (d décimales)
 const money = n => Math.round(n) + 'M';                 // 420 → "420M"
 
-/** Affiche un message temporaire en bas à droite (2,8 s). */
-function toast(text) {
-  const el = $('toast');
+/** Affiche un message temporaire. Les messages s'EMPILENT (avant, chacun écrasait le précédent
+    et les notifications de fin d'année se perdaient). kind : '' | 'good' | 'bad' | 'info'. */
+function toast(text, kind = '') {
+  const box = $('toast');
+  if (!box || !box.appendChild) return;
+  const el = document.createElement('div');
+  el.className = 'toast-item ' + kind;
   el.textContent = text;
-  el.style.display = 'block';
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (el.style.display = 'none'), 2800);
+  box.appendChild(el);
+  while (box.children.length > 4) box.firstChild.remove();       // pas plus de 4 à l'écran
+  setTimeout(() => el.remove(), 3600 + Math.min(2400, box.children.length * 400));
 }
 
 /**
@@ -22,7 +26,7 @@ function toast(text) {
  * Pour changer le libellé d'un levier, modifier la table LABELS ci-dessous.
  */
 const FX_LABELS = {
-  rate:   v => `+${v} RP/an`,
+  rate:   v => `+${v} PR/an`,
   lab:    v => `+${pc(v)} production des labos`,
   mine:   v => `+${pc(v)} revenus des mines`,
   flat:   v => `+${v}M/an`,
@@ -45,10 +49,10 @@ function fxText(effects) {
     .map(k => FX_LABELS[k](+R(effects[k], 3)));
 }
 
-/* Texte d'une récompense de contrat : { kind, amount } → « +20 % confiance », « +240M », « +32 RP » */
+/* Texte d'une récompense d'objectif : { kind, amount } → « +20 confiance », « +240M », « +32 PR » */
 const PAYOUT_LABELS = {
-  conf:   a => `+${Math.round(a)} % confiance`,
+  conf:   a => `+${Math.round(a)} confiance`,
   budget: a => `+${Math.round(a)}M de trésorerie`,
-  rp:     a => `+${Math.round(a)} RP`,
+  rp:     a => `+${Math.round(a)} PR`,
 };
 const payoutText = p => PAYOUT_LABELS[p.kind](p.amount);

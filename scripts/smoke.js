@@ -1,11 +1,11 @@
-/* Smoke test v5: exercise building and demolition without a browser. */
+/* Smoke test v1.1 : construction, destruction, rations, fin de mandat, sans navigateur. */
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
 const root = require('path').resolve(__dirname, '..');
 const context = {
   console, Math, JSON,
-  document: { getElementById: () => ({ textContent:'', style:{}, classList:{}, addEventListener(){}, onclick:null }) },
+  document: { getElementById: () => ({ textContent:'', style:{}, classList:{}, addEventListener(){}, onclick:null }), createElement: () => ({}) },
   setTimeout: () => 0, clearTimeout: () => {},
   localStorage: { setItem(){}, getItem(){ return null; } },
 };
@@ -14,7 +14,8 @@ vm.createContext(context);
 for (const file of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js']) {
   vm.runInContext(fs.readFileSync(`${root}/${file}`, 'utf8'), context, { filename: file });
 }
-vm.runInContext(`globalThis.__api = { getState: () => state, build, demolish, setRender: fn => { render = fn; }, setToast: fn => { toast = fn; } };`, context);
+vm.runInContext(`var treeSel = null; globalThis.renderBilan = () => {}; globalThis.showEndReport = () => {};
+  globalThis.__api = { getState: () => state, build, demolish, siteCalc, nextYear, newGame, setRender: fn => { render = fn; }, setToast: fn => { toast = fn; } };`, context);
 const api = context.__api;
 api.setRender(() => {});
 api.setToast(() => {});
@@ -31,4 +32,14 @@ if (context.__api.getState().tech.length !== 3) throw new Error('technologies de
 api.demolish(0, 'mine');
 if (b.mine) throw new Error('destruction de la mine échouée');
 if (context.__api.getState().rp !== undefined && context.__api.getState().rp > 16) throw new Error('état RP inattendu');
-console.log('OK: mine, labo, centrale, Gros projet construits; mine détruite; compatibilité S vérifiée.');
+// Serre constructible sans technologie, et rations comptées séparément des places
+st.sites[1].colonized = true; st.sites[1].pop = 15;
+api.build(1, 'farm');
+if (st.sites[1].b.farm !== 1) throw new Error('serre non constructible sans technologie');
+const c1 = api.siteCalc(1);
+if (c1.limit !== 'places' || c1.food <= c1.places) throw new Error('limite places/rations incorrecte');
+// Fin de mandat et révocation
+api.newGame(500, 40);
+for (let k = 0; k < 40 && !api.getState().over; k++) api.nextYear();
+if (!api.getState().over) throw new Error('la partie ne se termine pas');
+console.log('OK: bâtiments construits/détruits, serre sans techno, limite rations, fin de mandat (' + api.getState().over + ' en ' + api.getState().year + ').');

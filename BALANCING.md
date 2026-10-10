@@ -1,4 +1,24 @@
-# Équilibrage — prototype SpaceMandat v5
+# Équilibrage : prototype SpaceMandat
+
+## v1.1 : diagnostic « difficulté étrange »
+
+Mesuré avec `node scripts/bot.js` (bot glouton, vrai moteur, 80 ans) :
+
+| Avant v1.1 | Budget 200 | Budget 1 200 |
+|---|---|---|
+| Colonies en 2065 | 6 | 10 |
+| Revenu net en 2105 | +6 800 M/an | +11 200 M/an |
+| Confiance | 100 % dès 2045 | 100 % dès 2045 |
+
+Le budget de départ ne changeait presque rien, l'économie explosait en fin de partie et la confiance n'était jamais un enjeu. Causes et corrections (`js/config.js`) :
+
+- **Confiance** : les technologies cumulaient jusqu'à +6/an sans plafond, et la population rapportait linéairement. → plafond `caps.conf = 1`, gain de population logarithmique (`popGain`), érosion croissante (`driftGrowth = 0,02`/an écoulé), récompenses de confiance des objectifs × 0,6. Un joueur passif est maintenant révoqué vers la 40e année.
+- **Distance** : rendement en `d^(1,35 + far)` sans plafond sur `far` (une mine sur Gliese 667 Cc rapportait ~1 600 M/an pour 500 M). → `exponent = 1,15`, `caps.far = 0,12`.
+- **Gros projet** : coût ×4, rentabilité sur 75 ans. → `costs.projectMult = 2,5`.
+- **Fin de partie** : bilan chiffré à l'horizon, révocation à 0 % de confiance (`confidence.revoke`).
+
+Après v1.1 : 4 colonies en 2065 avec 200 M contre 9 avec 500 M (le budget pèse sur le tempo), revenu net final ~1 000 à 2 400 M/an. Ces valeurs restent à valider en jeu réel.
+
 
 ## Recherche et arbre technologique
 

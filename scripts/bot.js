@@ -1,0 +1,82 @@
+/* Bot de partie sans navigateur : joue une stratégie gloutonne avec le VRAI moteur
+   (config, state, mechanics, actions) pour mesurer l'équilibrage.
+   Usage : node scripts/bot.js [budget] [horizon] [graine] */
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const root = require('path').resolve(__dirname, '..');
+
+function makeGame(seed) {
+  let x = seed || 1;
+  const rnd = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const el = () => ({ textContent: '', innerHTML: '', style: {}, classList: { add(){}, remove(){}, contains(){ return false; } }, addEventListener(){}, value: '' });
+  const ctx = {
+    console, JSON, Object, Array, Number, String,
+    Math: Object.assign(Object.create(Math), { random: rnd }),
+    document: { getElementById: el, querySelector: el, querySelectorAll: () => [] },
+    setTimeout: () => 0, clearTimeout: () => {},
+    localStorage: { setItem(){}, getItem(){ return null; }, removeItem(){} },
+  };
+  ctx.global = ctx;
+  vm.createContext(ctx);
+  for (const f of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js'])
+    vm.runInContext(fs.readFileSync(`${root}/${f}`, 'utf8'), ctx, { filename: f });
+  vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
+    globalThis.__g = { get state(){ return state; }, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
+      missionCost, bCost, missingReqs, ready, has, TECH, SITES, ARCH, CONTRACT_BY_ID };`, ctx);
+  return ctx.__g;
+}
+
+function play(budget, horizon, seed, log = false) {
+  const g = makeGame(seed);
+  g.newGame(budget, horizon);
+  const st = () => g.state;
+  // Technologies utiles en priorité : prérequis des sites et des bâtiments
+  const wanted = new Set();
+  g.SITES.forEach(S => [].concat(S.req || []).forEach(id => wanted.add(id)));
+  g.ARCH.forEach(a => a.tech && wanted.add(a.tech));
+  const rows = [];
+  for (let y = 0; y < horizon; y++) {
+    // Recherche : la moins chère disponible, en privilégiant les technos utiles
+    for (let k = 0; k < 5; k++) {
+      const av = g.TECH.filter(t => !g.has(t.id) && g.ready(t) && st().rp >= t.rp)
+        .sort((a, b) => (wanted.has(b.id) - wanted.has(a.id)) || a.rp - b.rp);
+      if (!av.length) break;
+      g.researchTech(av[0].id);
+    }
+    // Bâtiments
+    st().sites.forEach((s, i) => {
+      if (!s.colonized) return;
+      for (let k = 0; k < 4; k++) {
+        const c = g.siteCalc(i);
+        if (c.used >= c.slots) break;
+        const pick = c.energyRatio < 1 && g.has('E01') ? 'power'
+          : c.pop >= c.cap - 3 ? (k % 2 ? 'farm' : 'hab')
+          : (s.b.mine || 0) <= (s.b.lab || 0) ? 'mine' : 'lab';
+        const a = g.ARCH.find(z => z.k === pick);
+        if (a.tech && !g.has(a.tech)) { const alt = g.ARCH.find(z => z.k === 'hab'); if (st().budget < g.bCost(i, alt) + 40) break; g.build(i, 'hab'); continue; }
+        if (st().budget < g.bCost(i, a) + 40) break;
+        g.build(i, pick);
+      }
+    });
+    // Missions : la moins chère accessible si la réserve le permet
+    const cand = g.SITES.map((S, i) => i).filter(i => !st().sites[i].colonized && !st().sites[i].mission && !g.missingReqs(i).length)
+      .sort((a, b) => g.missionCost(a) - g.missionCost(b));
+    if (cand.length && st().budget > g.missionCost(cand[0]) + 60) g.launch(cand[0]);
+    const T = g.totals();
+    rows.push({ an: st().year, budget: Math.round(st().budget), net: +(T.bud - T.upk).toFixed(1), rp: +T.res.toFixed(1),
+      pop: Math.round(T.pop), conf: +st().confidence.toFixed(1), col: st().sites.filter(s => s.colonized).length, tech: st().tech.length });
+    g.nextYear();
+  }
+  const cs = st().contracts;
+  return { g, budget, horizon, fin: rows.at(-1), jalons: rows.filter((_, k) => [0, 4, 9, 19, 39, 59, 79, 119].includes(k)),
+    contrats: { total: cs.length, ok: cs.filter(c => c.done).length, ko: cs.filter(c => c.failed).length } };
+}
+
+if (require.main === module) {
+  const [b = 500, h = 80, s = 1] = process.argv.slice(2).map(Number);
+  const r = play(b, h, s);
+  console.log(`Budget ${b} · horizon ${h} · contrats ${JSON.stringify(r.contrats)}`);
+  console.table(r.jalons);
+}
+module.exports = { play, makeGame };

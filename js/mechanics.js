@@ -32,6 +32,8 @@ function getModifiers() {
   m.build  = Math.min(caps.build,  m.build);
   m.travel = Math.min(caps.travel, m.travel);
   m.crew   = Math.min(caps.crew,   m.crew);
+  m.far    = Math.min(caps.far,    m.far);
+  m.conf   = Math.min(caps.conf,   m.conf);
   return m;
 }
 
@@ -54,17 +56,15 @@ function siteCalc(i) {
   const B  = BALANCE;
 
   if (!s.colonized) {
-    return { pop:0, cap:0, slots:0, used:0, staff:1, bud:0, res:0, upk:0, conf:0, energyProduced:0, energyRequired:0, energyRatio:1, project:null };
+    return { pop:0, cap:0, places:0, food:0, limit:null, slots:0, used:0, staff:1, need:0, bud:0, res:0, upk:0, conf:0, energyProduced:0, energyRequired:0, energyRatio:1, project:null };
   }
 
-  // Capacité d'accueil et nourriture → la plus faible des deux limite la population
-  const cap  = (B.population.baseCap
+  // Places (logements) et rations (serres) → la plus faible des deux limite la population
+  const places = (B.population.baseCap
               + n('hab')  * B.population.habCap * sp('hab')
-              + n('farm') * B.population.farmCap
               + n('spec') * (x.cap || 0)) * (1 + M.cap);
-  const food = B.population.baseFood
-             + n('hab')  * B.population.habFood
-             + n('farm') * B.population.farmFood * sp('farm') * (1 + M.food);
+  const food = (B.population.baseFood
+             + n('farm') * B.population.farmFood * sp('farm')) * (1 + M.food);
 
   // Effectif : population disponible / équipage nécessaire
   const need  = ((n('lab') + n('mine')) * B.staffing.perProducer
@@ -81,21 +81,24 @@ function siteCalc(i) {
   const energyRatio = energyRequired > 0 ? Math.max(B.economy.energy.deficitFloor, Math.min(1, energyProduced / energyRequired)) : 1;
   const energy = energyRatio * (1 + n('power') * B.economy.powerBonus * (1 + M.power) * sp('power'));
 
-  // Revenus : mines + spécial (budget), × distance × effectif × énergie, + impôt par habitant
-  const bud = (n('mine') * B.economy.mineIncome * sp('mine') * (1 + M.mine)
-             + n('spec') * (x.budget || 0)) * F * staff * energy
+  // Revenus : mines (× effectif) + Gros projet (sans travailleurs), × distance × énergie, + impôt par habitant
+  const bud = (n('mine') * B.economy.mineIncome * sp('mine') * (1 + M.mine) * staff
+             + n('spec') * (x.budget || 0)) * F * energy
              + s.pop * B.economy.popTax;
 
-  // Recherche : labos + spécial
-  const res = (n('lab') * B.economy.labOutput * sp('lab') * (1 + M.lab)
-             + n('spec') * (x.research || 0)) * F * staff * energy;
+  // Recherche : labos (× effectif) + Gros projet
+  const res = (n('lab') * B.economy.labOutput * sp('lab') * (1 + M.lab) * staff
+             + n('spec') * (x.research || 0)) * F * energy;
 
   // Entretien : chaque bâtiment coûte (coût de base × distance × taux)
   const upk = ARCH.reduce((t, a) => t + n(a.k) * a.c * S.d * B.economy.upkeepRate, 0);
 
   return {
     pop: s.pop,
-    cap: Math.round(Math.min(cap, food)),
+    cap: Math.round(Math.min(places, food)),
+    places: Math.round(places), food: Math.round(food),
+    limit: food < places ? 'food' : 'places',     // ce qui bloque la population
+    need,
     slots: B.colony.baseSlots + Math.floor(s.pop / B.colony.popPerSlot),
     used: Object.values(s.b).reduce((a, b) => a + b, 0) + (s.project && !s.project.done ? 1 : 0),
     staff, bud, res, upk,
@@ -123,7 +126,9 @@ function totals() {
     const c = siteCalc(i);
     t.bud += c.bud; t.upk += c.upk; t.res += c.res; t.pop += c.pop; t.conf += c.conf;
   });
-  t.conf += t.pop * BALANCE.confidence.perPop;
+  const C = BALANCE.confidence;
+  t.conf += C.popGain * Math.log10(1 + t.pop / 100)
+          - C.driftGrowth * (state.year - state.startYear);
   return t;
 }
 
@@ -136,9 +141,9 @@ const missionCost = i => SITES[i].c * SITES[i].d * (1 - getModifiers().launch);
 // Durée du trajet : fenêtre × (1 − bonus travel), au moins 1 an
 const duration = i => Math.max(1, Math.round(SITES[i].w * (1 - getModifiers().travel)));
 
-// Bâtiment : coût de base × distance × (1 − bonus build) × (1 + 12 % par exemplaire déjà construit)
+// Bâtiment : coût de base (× projectMult pour un Gros projet) × distance × (1 − bonus build) × (1 + 12 % par exemplaire déjà construit)
 const bCost = (i, a) =>
-  (a.project ? a.c * 4 : a.c) * SITES[i].d * (1 - getModifiers().build)
+  (a.project ? a.c * BALANCE.costs.projectMult : a.c) * SITES[i].d * (1 - getModifiers().build)
   * (1 + BALANCE.costs.buildGrowth * (state.sites[i].b[a.k] || 0));
 
 /* ---------------------------------------------------------------------
@@ -196,3 +201,14 @@ function contractPayout(c) {
   const base = c.amount ?? def.reward;
   return { kind, amount: base * (1 + getModifiers().reward) };
 }
+
+/* Entretien annuel d'UN bâtiment de type a sur le site i (même formule que siteCalc) */
+const upkeepOf = (i, a) => a.c * SITES[i].d * BALANCE.economy.upkeepRate;
+
+/* Énergie consommée par un bâtiment de type k (0 pour les centrales) */
+const ENERGY_KEY = { lab: 'labUse', mine: 'mineUse', farm: 'farmUse', hab: 'habUse' };
+const energyUseOf = k => ENERGY_KEY[k] ? BALANCE.economy.energy[ENERGY_KEY[k]] : k === 'spec' ? BALANCE.economy.energy.projectUse : 0;
+
+/* Travailleurs requis par un bâtiment de type k (avant bonus « crew ») */
+const workersOf = k => (k === 'lab' || k === 'mine') ? BALANCE.staffing.perProducer
+  : k === 'power' ? BALANCE.staffing.perPower : 0;
