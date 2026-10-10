@@ -19,10 +19,7 @@ const techResearchCost = t => Math.round(
   * Math.pow(BALANCE.research.eraCostGrowth, t.era - 1) * 2
 ) / 2;
 TECH.forEach(t => {
-  const source = OV[t.id] || (() => {
-    const [lever, base] = CYC[t.branch][(techRank(t) - 1) % 4];
-    return { [lever]: base };
-  })();
+  const source = OV[t.id] || CYC[t.branch][(techRank(t) - 1) % 4];
   // Les surcharges précises bénéficient elles aussi de la montée en puissance par ère.
   const eraMult = 1 + BALANCE.techScaling.eraStep * (t.era - 1);
   const effect = Object.fromEntries(Object.entries(source).map(([lever, base]) => [

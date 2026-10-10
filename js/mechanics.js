@@ -202,7 +202,7 @@ function contractPayout(c) {
   return { kind, amount: base * (1 + getModifiers().reward) };
 }
 
-/* Entretien annuel d'UN bâtiment de type a sur le site i (même formule que siteCalc) */
+/* Entretien annuel d'un seul bâtiment de type a sur le site i (même formule que siteCalc) */
 const upkeepOf = (i, a) => a.c * SITES[i].d * BALANCE.economy.upkeepRate;
 
 /* Énergie consommée par un bâtiment de type k (0 pour les centrales) */

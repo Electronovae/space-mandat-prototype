@@ -415,7 +415,7 @@ h1,h2,h3,.brand {
   display: block;
   background: var(--lime);
 }
-/* ===== UN CONTRACTS ===== */
+/* ===== OBJECTIFS ONU ===== */
 .contracts {
   display: grid;
   gap: 10px;
@@ -1116,20 +1116,16 @@ svg.links {
    AJOUTS v1.1 : retours de test (notifications, guide, opérations, arbre, fin de mandat)
    ===================================================================== */
 
-/* ===== Passage d'une année : flottant en bas à droite, toujours visible ===== */
-.turn-dock {
-  position: fixed; right: 20px; bottom: 20px; margin: 0;
-  box-shadow: var(--shadow); background: #10211ef2; backdrop-filter: blur(6px);
-}
+/* ===== Passage d'une année : bandeau sous le HUD, dans le flux (ne suit pas le défilement) ===== */
+.turn-dock { position: static; margin: 0 0 18px; }
 .turn-dock .eyebrow b { color: var(--lime); font-size: 14px; margin-left: 4px; }
 .turn-dock small { display: block; margin-top: 3px; }
-.main { padding-bottom: 110px; }
 
 /* ===== Notifications empilées ===== */
 .toast {
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
   background: none; box-shadow: none; padding: 0;
-  right: 20px; bottom: 96px; z-index: 7; pointer-events: none; max-width: min(420px, calc(100% - 40px));
+  right: 20px; bottom: 20px; z-index: 7; pointer-events: none; max-width: min(420px, calc(100% - 40px));
 }
 .toast-item {
   background: #d8f78a; color: #132018; padding: 10px 14px; border-radius: 4px;
@@ -1166,7 +1162,11 @@ svg.links {
 }
 .build-info .run { color: #6f8b86; font-size: 9px; }
 .build-info strong span { display: inline; margin-top: 0; }
-.build-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.build-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.build-row .btn.danger { font-size: 11px; padding: 8px 12px; min-width: 92px; font-weight: 500; }
+.build-row .btn.danger:hover { background: #4a2430; border-color: var(--danger); color: #ffd0d6; }
+.techside ul.impact { color: var(--ink); }
+.techside ul.impact b { color: var(--lime); font-weight: 500; }
 .btn.short { opacity: .6; }
 em.warn { color: var(--orange); font-style: normal; }
 .build-total div { margin: 2px 0; }
@@ -1214,7 +1214,6 @@ em.warn { color: var(--orange); font-style: normal; }
 .endreport tr.tot td { color: var(--lime); font-size: 13px; border-bottom: 0; }
 
 @media(max-width:900px) {
-  .turn-dock { left: 12px; right: 12px; bottom: 12px; flex-direction: row; }
   .site-meta { grid-template-columns: 1fr 1fr; }
 }
 

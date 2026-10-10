@@ -145,7 +145,7 @@ const BALANCE = {
   // --- Progression des effets de technologies ------------------------
   // effet = valeur_de_base × (1 + eraStep × (ère − 1)), voir CYC ci-dessous
   techScaling: {
-    eraStep: 0.55,
+    eraStep: 0.2,       // 0,55 avant : avec des effets de base plus forts (v1.1), la fin de partie s'emballait
   },
 };
 
@@ -293,7 +293,8 @@ const ERAS = [
      far     +bonus à l'exposant de distance (0.03 = +3 pts)
      crew    −% équipage requis          reward  +% récompense des contrats
 
-   Règle par défaut : chaque branche répète un cycle de 4 effets.
+   Règle par défaut : chaque branche répète un cycle de 4 effets ; chaque effet peut
+   combiner plusieurs leviers (v1.1 : un levier seul à −5 % passait inaperçu).
    La techno n°N de la branche utilise l'effet CYC[branche][(N−1) % 4] :
      E01→1er, E02→2e, E03→3e, E04→4e, E05→1er, …
    Valeur finale = valeur × (1 + eraStep × (ère − 1)).
@@ -302,12 +303,12 @@ const ERAS = [
    Pour surcharger une techno précise, utiliser OV (prioritaire sur CYC).
    --------------------------------------------------------------------- */
 const CYC = {
-  E: [['power',  0.08], ['mine',   0.06], ['flat',   1.5],  ['lab',    0.05]],
-  P: [['launch', 0.04], ['travel', 0.05], ['far',    0.03], ['launch', 0.03]],
-  M: [['build',  0.03], ['mine',   0.06], ['build',  0.025],['flat',   1.5]],
-  V: [['cap',    0.08], ['food',   0.08], ['grow',   0.1],  ['conf',   0.15]],
-  I: [['lab',    0.08], ['rate',   1],    ['crew',   0.05], ['rate',   1]],
-  S: [['conf',   0.2],  ['flat',   2],    ['reward', 0.15], ['conf',   0.15]],
+  E: [{ power: 0.15, flat: 1 },   { mine: 0.08, flat: 1 },     { flat: 3, lab: 0.05 },      { lab: 0.10, power: 0.05 }],
+  P: [{ launch: 0.08 },           { travel: 0.10 },            { far: 0.03, launch: 0.03 }, { travel: 0.08, launch: 0.04 }],
+  M: [{ build: 0.06 },            { mine: 0.08, build: 0.02 }, { build: 0.05, cap: 0.05 },  { flat: 3, mine: 0.04 }],
+  V: [{ cap: 0.12 },              { food: 0.15, grow: 0.1 },   { grow: 0.2, cap: 0.04 },    { conf: 0.1, cap: 0.06 }],
+  I: [{ lab: 0.12 },              { rate: 2 },                 { crew: 0.08, lab: 0.05 },   { rate: 2, reward: 0.05 }],
+  S: [{ conf: 0.15 },             { flat: 3 },                 { reward: 0.2, conf: 0.05 }, { conf: 0.1, flat: 2 }],
 };
 
 // Surcharges : remplacent entièrement l'effet d'une techno (peut contenir plusieurs leviers).
@@ -315,7 +316,8 @@ const OV = {
   E01: { power: 0.2, flat: 1 },
   E04: { lab: 0.3 },
   P01: { launch: 0.25 },
-  P03: { travel: 0.15 },
+  P02: { travel: 0.12, launch: 0.05 },
+  P03: { travel: 0.18 },
   P08: { travel: 0.3 },
   M01: { build: 0.08, launch: 0.08 },
   M04: { mine: 0.2 },

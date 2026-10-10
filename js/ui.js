@@ -44,11 +44,6 @@ function render() {
   $('navBadge').textContent = nNew ? nNew : '';
   $('navBadge').style.display = nNew ? '' : 'none';
 
-  // Briefing : n'aide qu'au tout début, disparaît une fois la première colonie installée
-  const flying = state.sites.find(s => s.mission);
-  $('briefing').style.display = anyColonyNow() ? 'none' : '';
-  if (flying) $('briefing').innerHTML = `★ <b>Mission en route.</b> Avancez d’un an (touche N) jusqu’à l’arrivée des colons en ${flying.mission.arrival}, puis construisez logements et serres depuis <b>Opérations</b>.`;
-
   renderMap();
   renderActivity();
   renderOps();
@@ -206,7 +201,7 @@ function buildRow(i, a, j, M, c) {
   else if (full)        btn = `<button class="btn" disabled title="Un emplacement s’ouvre tous les ${BALANCE.colony.popPerSlot} habitants">Aucun emplacement libre</button>`;
   else                  btn = `<button class="btn ${state.budget >= bCost(i, a) ? '' : 'short'}" onclick="build(${i},'${a.k}')">Construire · ${money(bCost(i, a))}</button>`;
 
-  if (n) btn += ` <button class="btn danger" onclick="demolish(${i},'${a.k}')" title="Détruire un exemplaire, sans remboursement">Détruire</button>`;
+  if (n) btn += ` <button class="btn danger" onclick="demolish(${i},'${a.k}')" title="Détruire un exemplaire, sans remboursement">✕ Détruire</button>`;
   const info = ARCH_INFO[a.k];
 
   return `<div class="build-row ${locked ? 'lock' : ''} ${a.k === 'spec' ? 'spec' : ''}">
@@ -516,6 +511,54 @@ function drawLinks() {
   svg.innerHTML = html;
 }
 
+/* ---------------------------------------------------------------------
+   Impact concret d'une technologie sur la partie EN COURS
+   On l'ajoute temporairement, on recalcule, on l'enlève : le joueur voit
+   « +4,2M/an », « Mars : 5 → 4 ans » plutôt qu'un pourcentage abstrait.
+   --------------------------------------------------------------------- */
+function techSnapshot() {
+  const T = totals();
+  const caps = state.sites.map((s, i) => s.colonized ? siteCalc(i).cap : 0).reduce((a, b) => a + b, 0);
+  const missions = SITES.map((S, i) => state.sites[i].colonized ? null : { cost: missionCost(i), dur: duration(i) });
+  const builds = state.sites.map((s, i) => s.colonized ? bCost(i, ARCH[0]) : null);
+  return { net: T.bud - T.upk, res: T.res, conf: T.conf, caps, missions, builds };
+}
+
+function techImpact(id) {
+  const before = techSnapshot();
+  state.tech.push(id);
+  let after;
+  try { after = techSnapshot(); } finally { state.tech.pop(); }
+
+  const out = [], sign = v => (v >= 0 ? '+' : '') ;
+  const dNet = after.net - before.net, dRes = after.res - before.res, dConf = after.conf - before.conf, dCap = after.caps - before.caps;
+  if (Math.abs(dNet) >= 0.05) out.push(`Revenu net : <b>${sign(dNet)}${R(dNet, 1)}M/an</b>`);
+  if (Math.abs(dRes) >= 0.05) out.push(`Recherche : <b>${sign(dRes)}${R(dRes, 1)} PR/an</b>`);
+  if (Math.abs(dConf) >= 0.005) out.push(`Confiance : <b>${sign(dConf)}${R(dConf, 2)}/an</b>`);
+  if (Math.abs(dCap) >= 0.5) out.push(`Population max (toutes colonies) : <b>${sign(dCap)}${Math.round(dCap)} habitants</b>`);
+
+  // Missions : on montre l'astre accessible le plus proche, et les trajets raccourcis
+  const open = SITES.map((S, i) => i).filter(i => before.missions[i]).sort((a, b) => SITES[a].d - SITES[b].d);
+  const cheaper = open.find(i => before.missions[i].cost - after.missions[i].cost >= 0.5);
+  if (cheaper !== undefined)
+    out.push(`Mission vers ${SITES[cheaper].n} : <b>${money(before.missions[cheaper].cost)} → ${money(after.missions[cheaper].cost)}</b>`);
+  const faster = open.filter(i => after.missions[i].dur < before.missions[i].dur);
+  if (faster.length)
+    out.push('Trajets raccourcis : ' + faster.slice(0, 3).map(i => `<b>${SITES[i].n} ${before.missions[i].dur} → ${after.missions[i].dur} ans</b>`).join(', ')
+      + (faster.length > 3 ? ` et ${faster.length - 3} autre${faster.length > 4 ? 's' : ''}` : ''));
+  const bi = state.sites.findIndex(s => s.colonized);
+  if (bi >= 0 && before.builds[bi] - after.builds[bi] >= 0.5)
+    out.push(`Logement sur ${SITES[bi].n} : <b>${money(before.builds[bi])} → ${money(after.builds[bi])}</b>`);
+  return out;
+}
+
+function techImpactHtml(id) {
+  const out = techImpact(id);
+  if (out.length) return '<ul class="impact">' + out.map(x => `<li>${x}</li>`).join('') + '</ul>';
+  const fx = FX[id];
+  return `<p class="muted">Aucun effet immédiat${!anyColonyNow() ? ' : il se verra une fois des colonies installées' : ''}${fx.reward ? ' ; s’applique aux prochaines récompenses d’objectifs' : ''}${fx.crew ? ' ; réduit les travailleurs requis' : ''}.</p>`;
+}
+
 /* Panneau de droite : bonus actifs (rien de sélectionné) ou détail d'une techno */
 function renderTechSide() {
   const t = TECH.find(x => x.id === treeSel);
@@ -562,6 +605,7 @@ function renderTechSide() {
     <h3>${t.name}</h3>
     <p class="muted">${t.description}</p>
     <h4>Effets en jeu</h4><ul>${fxText(FX[t.id]).map(x => `<li>${x}</li>`).join('')}</ul>
+    ${done ? '' : `<h4>Dans votre partie</h4>${techImpactHtml(t.id)}`}
     ${unlocks.length ? `<h4>Débloque</h4><ul>${unlocks.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}
     <h4>Physique</h4><p class="muted">${t.physics}</p>
     <h4>Prérequis</h4><p>${prereqs}</p>

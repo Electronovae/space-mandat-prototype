@@ -14,6 +14,13 @@ Bugs
 
 Équilibrage et fin de partie : voir BALANCING.md (v1.1).
 
+Retours de Florian (10/10)
+- Technologies : chaque effet de cycle combine désormais deux leviers et des valeurs de base plus fortes (ex. P02 : −12 % trajets et −5 % missions) ; multiplicateur par ère 0,55 → 0,2 pour éviter l'emballement de fin de partie.
+- Panneau d'une technologie : nouvelle section « Dans votre partie » qui montre l'effet concret sur la partie en cours (revenu, PR, confiance, population, « Mars 5 → 4 ans », coût de mission).
+- Bandeau « Cycle du mandat » remis sous le HUD, sans suivre le défilement.
+- Bouton « Détruire » agrandi.
+- Ligne « Briefing » supprimée (le guide en pop-ups prend le relais).
+
 ## v5 — arbre technologique renforcé
 
 - Suppression de la limite implicite de recherche par techno : aucune limite de niveau ou de points par technologie n’est appliquée.

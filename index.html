@@ -78,9 +78,14 @@
     </section>
 
 
+    <!-- Passage d'une année : reste à sa place sous le HUD (ne suit pas le défilement) -->
+    <div class="turn-dock" role="region" aria-label="Contrôle du temps">
+      <div><span class="eyebrow">CYCLE DU MANDAT · ANNÉE <b id="dockYear">2026</b></span><small id="dockHint">Raccourci : touche N</small></div>
+      <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
+    </div>
+
     <!-- ============================ VUE : CENTRE DE COMMANDEMENT ============================ -->
     <div id="command" class="view active">
-      <div class="notice" id="briefing">★ <b>Briefing.</b> Lancez une mission d’installation depuis <b>Opérations</b> (LAGRANGE 1 est accessible tout de suite), puis construisez logements et serres pour faire grandir la colonie.</div>
       <div class="grid">
 
         <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
@@ -150,12 +155,6 @@
     </div>
 
   </main>
-</div>
-
-<!-- Passage d'une année : en bas à droite, toujours visible (raccourci N) -->
-<div class="turn-dock" role="region" aria-label="Contrôle du temps">
-  <div><span class="eyebrow">ANNÉE <b id="dockYear">2026</b></span><small id="dockHint">Raccourci : touche N</small></div>
-  <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
 </div>
 
 <!-- Notifications temporaires (empilées) -->
