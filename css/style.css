@@ -102,7 +102,7 @@ h1,h2,h3,.brand {
   padding: 26px 30px 40px;
   max-width: 1550px;
   width: 100%;
-  margin: auto;
+  margin: 0 auto;   /* « auto » centrait verticalement les vues courtes (décalage de ~115 px) */
 }
 /* ===== HEADER & BUTTONS ===== */
 .top {
@@ -1318,3 +1318,41 @@ b.glob { color: var(--lime); font-weight: 500; }
 .mega-card p { font-size: 11px; line-height: 1.5; }
 .mega-fx { margin: 0; padding-left: 16px; color: var(--lime); font-size: 11px; line-height: 1.6; }
 .mega-meta { color: var(--muted); font-size: 10px; margin-top: auto; }
+
+/* ===== Effet réel d'un bâtiment ===== */
+.build-info .real { color: var(--cyan); font-size: 9px; }
+.build-info .real.bad { color: var(--orange); }
+
+/* Carte v1.5 : 11 astres dans le système (orbite basse ajoutée) */
+.map-sys .s11 { left: calc(15.4% - 28px); top: calc(20.4% - 28px); }
+
+/* ===== v1.5 : guide ancré dans la barre latérale ===== */
+.guide-dock {
+  display: none; margin: 18px 0 auto; padding: 12px; border: 1px solid #4f6f35; border-radius: 6px;
+  background: #16261b; font-size: 11px; line-height: 1.5;
+}
+.gd-head { display: flex; justify-content: space-between; align-items: center; color: var(--lime); font-size: 9px; letter-spacing: .12em; }
+.gd-head .linkbtn { color: var(--muted); letter-spacing: 0; font-size: 10px; }
+.gd-bar { height: 3px; background: #24423d; margin: 6px 0 10px; }
+.gd-bar i { display: block; height: 100%; background: var(--lime); }
+.guide-dock h4 { font: 700 14px Syne, sans-serif; margin: 0 0 6px; color: var(--ink); }
+.gd-goal { margin: 0 0 6px; color: var(--ink); }
+.gd-goal b, .gd-how b { color: var(--lime); font-weight: 500; }
+.gd-how { margin: 0 0 8px; color: var(--muted); font-size: 10px; }
+.gd-wait { margin: 0; color: #6f8b86; font-size: 9px; font-style: italic; }
+.gd-next { width: 100%; padding: 7px; font-size: 11px; }
+.guide-target { outline: 2px solid var(--lime) !important; outline-offset: 3px; animation: guidePulse 1.6s infinite; }
+
+/* ===== v1.5 : « À décider » actionnable ===== */
+.todo-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.todo-item .btn.primary { font-weight: 500; }
+
+/* ===== v1.5 : objectifs ONU sur le Centre de commandement ===== */
+.cc-head { font-size: 10px; margin-bottom: 8px; }
+.cc-head b { color: var(--lime); font-weight: 500; }
+.cc { border: 1px solid var(--line); background: #0d1d1a; padding: 8px 10px; margin-top: 6px; }
+.cc.soon { border-left: 3px solid var(--orange); }
+.cc-top { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--ink); }
+.cc .bar { margin: 6px 0 4px; }
+.cc-meta { font-size: 9px; color: var(--muted); }
+.cc-meta b { font-weight: 500; }

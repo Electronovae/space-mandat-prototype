@@ -44,6 +44,10 @@ function play(budget, horizon, seed, log = false) {
       if (!av.length) break;
       g.researchTech(av[0].id);
     }
+    // Réserve pour la prochaine mission accessible (un joueur épargne pour s'étendre)
+    const next = g.SITES.map((S, i) => i).filter(i => !st().sites[i].colonized && !st().sites[i].mission && !g.missingReqs(i).length)
+      .sort((a, b) => g.missionCost(a) - g.missionCost(b))[0];
+    const reserve = next === undefined ? 40 : Math.min(g.missionCost(next), 40 + st().budget * 0.6);
     // Bâtiments
     st().sites.forEach((s, i) => {
       if (!s.colonized) return;
@@ -52,10 +56,10 @@ function play(budget, horizon, seed, log = false) {
         if (c.used >= c.slots) break;
         const pick = c.energyRatio < 1 && g.has('E01') && (s.b.mine || s.b.lab) ? 'power'
           : (c.pop >= c.cap - 3 || c.staff < 0.9) ? (c.limit === 'food' ? 'farm' : 'hab')
-          : (s.b.mine || 0) <= (s.b.lab || 0) ? 'mine' : 'lab';
+          : (s.b.mine || 0) <= (s.b.lab || 0) ? 'mine' : (g.has('S01') && !s.b.gov) ? 'gov' : 'lab';
         const a = g.ARCH.find(z => z.k === pick);
-        if (a.tech && !g.has(a.tech)) { const alt = g.ARCH.find(z => z.k === 'hab'); if (st().budget < g.bCost(i, alt) + 40) break; g.build(i, 'hab'); continue; }
-        if (st().budget < g.bCost(i, a) + 40) break;
+        if (a.tech && !g.has(a.tech)) { const alt = g.ARCH.find(z => z.k === 'hab'); if (st().budget < g.bCost(i, alt) + reserve) break; g.build(i, 'hab'); continue; }
+        if (st().budget < g.bCost(i, a) + reserve) break;
         g.build(i, pick);
       }
     });

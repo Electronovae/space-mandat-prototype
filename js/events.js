@@ -121,6 +121,10 @@ const EVENTS = [
         apply: st => {
           const av = TECH.filter(t => !st.tech.includes(t.id) && t.prerequisites.every(p => st.tech.includes(p)))
             .sort((a, b) => b.rp - a.rp).slice(0, 3);        // parmi les plus chères disponibles
+          if (!av.length) {                                  // plus rien à offrir : des PR à la place
+            const g = Math.round(80 * scaleM(st)); st.rp += g;
+            return `Pas de technologie disponible : +${g} PR à la place.`;
+          }
           const t = randomOf(av); st.tech.push(t.id);
           return `Technologie offerte : ${t.id} · ${t.name} (${t.rp} PR).`;
         } },

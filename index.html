@@ -29,10 +29,12 @@
       <button data-view="tech">⌘ &nbsp; Arbre technologique</button>
       <button data-view="mega">✺ &nbsp; Mégastructures</button>
     </nav>
+    <!-- Guide pas à pas : ancré dans la barre latérale, ne recouvre jamais le jeu (guide.js) -->
+    <div class="guide-dock" id="guide" aria-live="polite"></div>
     <div class="side-foot">
       SECTEUR SOLAIRE · A-01<br>
       Mandat actif · <span style="color:var(--lime)" id="mandateLen">80 ans</span><br><br>
-      v1.4 prototype<br>Simulation locale
+      v1.5 prototype<br>Simulation locale
     </div>
   </aside>
 
@@ -119,9 +121,15 @@
             <div class="map-ext-row" id="mapExo"></div>
           </div>
         </div>
-        <div class="card">
-          <h3>Activité en cours</h3>
-          <div class="mission-list" id="activity"></div>
+        <div>
+          <div class="card">
+            <h3>Objectifs ONU en cours <a class="linkbtn" style="float:right;font-size:10px" onclick="goToView('contracts')">tout voir →</a></h3>
+            <div id="cockpitContracts"></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h3>Activité en cours</h3>
+            <div class="mission-list" id="activity"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -174,8 +182,7 @@
 <!-- Notifications temporaires (empilées) -->
 <div class="toast" id="toast" aria-live="polite"></div>
 
-<!-- Guide pas à pas (pop-ups contextuelles, voir guide.js) -->
-<div class="guide" id="guide" role="dialog" aria-live="polite"></div>
+
 
 <!-- ============================ FENÊTRE DE DÉMARRAGE ============================ -->
 <div class="modal" id="setup">
@@ -221,9 +228,11 @@
     <h2 style="margin:8px 0 6px">Règles en bref</h2>
     <p>Vous dirigez le programme spatial civil de l’ONU jusqu’en <b id="helpEnd">2106</b>. Installez des colonies, développez-les et gardez la confiance de l’ONU.</p>
     <details open><summary>Missions d’installation</summary>
-      <p>Depuis <b>Opérations</b>, une mission emmène 15 colons vers un astre. Elle coûte un montant unique et met plusieurs années à arriver. Certains astres exigent des technologies (pastilles « Prérequis »).</p></details>
+      <p>Depuis <b>Opérations</b>, une mission emmène 15 colons vers un astre (l’Orbite basse est la plus proche et la moins chère). Elle coûte un montant unique et met plusieurs années à arriver. Certains astres exigent des technologies (pastilles « Prérequis »).</p></details>
     <details><summary>Colonies et bâtiments</summary>
-      <p>Chaque bâtiment occupe un <b>emplacement</b> ; la colonie en gagne un tous les 20 habitants. La population est limitée par les <b>places</b> (logements) et les <b>rations</b> (serres) : le plus faible des deux bloque. Mines et laboratoires demandent des <b>travailleurs</b> (des habitants) : en sous-effectif, ils produisent moins. Chaque bâtiment a un <b>entretien</b> annuel, sauf ceux qui rapportent de l’argent (mines, Gros projets à revenus). Un bâtiment peut être détruit pour libérer son emplacement.</p></details>
+      <p>Chaque bâtiment occupe un <b>emplacement</b> ; la colonie en gagne un tous les 13 habitants. La population est limitée par les <b>places</b> (logements) et les <b>rations</b> (serres) : le plus faible des deux bloque. Mines et laboratoires demandent 30 <b>travailleurs</b> (des habitants), les centrales 15 : en sous-effectif, la colonie produit moins. Chaque ligne de construction indique l’<b>effet réel</b> du bâtiment sur votre colonie. Chaque bâtiment a un <b>entretien</b> annuel, sauf ceux qui rapportent de l’argent (mines, Gros projets à revenus). Un bâtiment peut être détruit pour libérer son emplacement.</p></details>
+    <details><summary>Gouvernance</summary>
+      <p>Le centre de gouvernance (technologie S01, 2 par astre au plus) administre la colonie : il produit des PR et un peu de confiance chaque année, contre 20 travailleurs et de l’énergie.</p></details>
     <details><summary>Énergie</summary>
       <p>Les centrales produisent de l’énergie, les autres bâtiments en consomment. Si la colonie manque d’énergie, toute sa production baisse (jusqu’à 35 %). Chaque centrale ajoute aussi un petit bonus de production.</p></details>
     <details><summary>Gros projets</summary>

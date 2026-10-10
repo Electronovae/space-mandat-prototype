@@ -17,8 +17,8 @@ function toast(text, kind = '') {
   el.className = 'toast-item ' + kind;
   el.textContent = text;
   box.appendChild(el);
-  while (box.children.length > 4) box.firstChild.remove();       // pas plus de 4 à l'écran
-  setTimeout(() => el.remove(), 3600 + Math.min(2400, box.children.length * 400));
+  while (box.children.length > 3) box.firstChild.remove();       // pas plus de 3 à l'écran
+  setTimeout(() => el.remove(), 3000 + Math.min(1500, box.children.length * 300));
 }
 
 /**

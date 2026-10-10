@@ -46,6 +46,7 @@ function render() {
   $('navBadge').style.display = nNew ? '' : 'none';
 
   renderTodo();
+  renderCockpitContracts();
   renderMap();
   renderActivity();
   renderOps();
@@ -159,15 +160,12 @@ function unitTxt(i, a, M, c) {
   const sp = k => S.sp[k] || 1;
 
   switch (a.k) {
-    case 'hab': {
-      const gain = Math.round(B.population.habCap * sp('hab') * (1 + M.cap));
-      const warn = c && c.limit === 'food' ? ` <em class="warn">· les rations bloquent déjà : construisez plutôt une serre</em>` : '';
-      return `+${gain} places${warn}`;
-    }
-    case 'farm': {
-      const warn = c && c.limit === 'places' && c.pop >= c.cap - 1 ? ` <em class="warn">· les places bloquent : construisez plutôt un logement</em>` : '';
-      return `+${Math.round(B.population.farmFood * sp('farm') * (1 + M.food))} rations/an${warn}`;
-    }
+    case 'hab':
+      return `+${Math.round(B.population.habCap * sp('hab') * (1 + M.cap))} places`;
+    case 'farm':
+      return `+${Math.round(B.population.farmFood * sp('farm') * (1 + M.food))} rations/an`;
+    case 'gov':
+      return `+${R(B.economy.govOutput * F, 1)} PR/an à plein effectif · +${B.economy.govConf} confiance/an`;
     case 'lab':
       return `+${R(B.economy.labOutput * sp('lab') * (1 + M.lab) * F, 1)} PR/an à plein effectif`;
     case 'mine':
@@ -191,6 +189,26 @@ function projectTxt(i, M = getModifiers()) {
   if (s.b.spec && s.eff !== undefined && s.eff < 0.99)
     parts.push(`<em class="warn">efficacité ${Math.round(s.eff * 100)} % (travailleurs ou énergie insuffisants)</em>`);
   return parts.join(' · ');
+}
+
+/* Effet réel d'un bâtiment de plus, simulé sur la colonie telle qu'elle est (buildPreview) */
+function realTxt(i, a) {
+  const p = buildPreview(i, a.k), out = [];
+  const sg = v => (v >= 0 ? '+' : '−');
+  if (a.k === 'hab' || a.k === 'farm' || Math.abs(p.cap) >= 1) {
+    let t = `population max ${sg(p.cap)}${Math.abs(Math.round(p.cap))}`;
+    if (a.k === 'hab' && p.places > p.cap + 0.5) t += p.cap < 1 ? ' (les rations bloquent : il faut une serre)' : ' (limité par les rations)';
+    if (a.k === 'farm' && p.food > p.cap + 0.5) t += p.cap < 1 ? ' (les places bloquent : il faut un logement)' : ' (limité par les places)';
+    out.push(t);
+  }
+  if (Math.abs(p.net) >= 0.05) out.push(`${sg(p.net)}${R(Math.abs(p.net), 1)}M/an net`);
+  if (Math.abs(p.res) >= 0.05) out.push(`${sg(p.res)}${R(Math.abs(p.res), 1)} PR/an`);
+  if (Math.abs(p.conf) >= 0.01) out.push(`${sg(p.conf)}${R(Math.abs(p.conf), 2)} confiance/an`);
+  if (p.energy <= -0.005) out.push(`énergie ${Math.round(p.energy * 100)} %`);
+  if (p.energy >= 0.005) out.push(`énergie +${Math.round(p.energy * 100)} %`);
+  if (p.staff <= -0.005) out.push(`effectif ${Math.round(p.staff * 100)} %`);
+  const bad = p.net < -0.05 && p.res < 0.05 && p.cap < 1 && p.energy < 0.005;
+  return out.length ? `<span class="real ${bad ? 'bad' : ''}">→ effet réel ici : ${out.join(' · ')}</span>` : '';
 }
 
 /* Ligne de coûts récurrents d'un bâtiment : entretien, énergie, travailleurs */
@@ -227,8 +245,9 @@ function buildRow(i, a, j, M, c) {
   return `<div class="build-row ${locked ? 'lock' : ''} ${a.k === 'spec' ? 'spec' : ''}">
     <div class="build-icon">${a.ic}</div>
     <div class="build-info">
-      <strong>${S.nm[j]} <span class="build-cat">${info.cat}</span> <span class="build-count">×${n}${a.max ? '/' + a.max : ''}</span></strong>
+      <strong>${bName(i, a.k)} <span class="build-cat">${info.cat}</span> <span class="build-count">×${n}${a.max ? '/' + a.max : ''}</span></strong>
       <span>${unitTxt(i, a, M, c)}</span>
+      ${locked || maxed || projectRunning ? '' : realTxt(i, a)}
       <span class="run">${runTxt(i, a, M)}</span>
     </div><div class="build-btns">${btn}</div></div>`;
 }
@@ -250,6 +269,7 @@ function openTech(id) {
   jumpToTech(id);
 }
 
+const BUILD_ORDER = ['hab', 'farm', 'lab', 'mine', 'power', 'gov', 'spec'];   // ordre d'affichage
 let lockedShown = false;           // section « astres verrouillés » dépliée ?
 const buildOpen = new Set();       // colonies dont le menu de construction est ouvert
 function toggleBuild(i, open) { open ? buildOpen.add(i) : buildOpen.delete(i); }
@@ -342,13 +362,13 @@ function renderOps() {
         <div>EMPLACEMENTS <span class="tip" title="Chaque bâtiment occupe un emplacement. +1 emplacement tous les ${BALANCE.colony.popPerSlot} habitants.">ⓘ</span><b>${c.used} / ${c.slots}</b>${slotNote}</div>
         <div>TRAVAILLEURS <span class="tip" title="Habitants nécessaires pour faire tourner mines, labos et centrales à plein régime.">ⓘ</span><b>${Math.round(c.pop)} / ${Math.round(c.need)}</b>${staffNote}</div>`;
       // Bâtiments construits, en tuiles bien visibles ; le menu de construction est repliable
-      const tiles = ARCH.map((a, j) => (s.b[a.k] || 0) ? `<div class="tile ${a.k}" title="${S.nm[j]}">${a.ic}<b>×${s.b[a.k]}</b><small>${ARCH_INFO[a.k].cat}</small></div>` : '').join('')
+      const tiles = ARCH.map((a, j) => (s.b[a.k] || 0) ? `<div class="tile ${a.k}" title="${bName(i, a.k)}">${a.ic}<b>×${s.b[a.k]}</b><small>${ARCH_INFO[a.k].cat}</small></div>` : '').join('')
         + (s.project ? `<div class="tile spec build" title="${s.project.name}">✦<b>${s.project.progress}/${s.project.duration}</b><small>chantier</small></div>` : '')
         + Array.from({ length: Math.max(0, c.slots - c.used) }, () => '<div class="tile free">+<small>libre</small></div>').join('');
       const open = buildOpen.has(i) || c.used < c.slots;
       body = `<div class="tiles">${tiles || '<span class="muted">Aucun bâtiment</span>'}</div>
         <details class="build-menu" ${open ? 'open' : ''} ontoggle="toggleBuild(${i}, this.open)"><summary>Construire / détruire</summary>
-        <div class="build-list">${ARCH.map((a, j) => buildRow(i, a, j, M, c)).join('')}</div></details>
+        <div class="build-list">${BUILD_ORDER.map(k => ARCH.findIndex(a => a.k === k)).map(j => buildRow(i, ARCH[j], j, M, c)).join('')}</div></details>
         <div class="build-total">
           <div>ÉNERGIE <b>${R(c.energyProduced, 1)} produite / ${R(c.energyRequired, 1)} consommée</b> · <b class="${c.energyRatio < 1 ? 'negative' : 'positive'}">${Math.round(c.energyRatio * 100)} % couvert</b>${c.pooled ? ' <b class="glob">(réseau interplanétaire : bilan commun à toutes les colonies)</b>' : ''}${c.energyRatio < 1 && ((s.b.mine || 0) + (s.b.lab || 0) + (s.b.spec || 0) || s.project) ? ' <em class="warn">· mines, labos et Gros projet ralentis : construisez une centrale</em>' : ''}</div>
           <div>VIVRES <b>${c.places} places</b> · <b>${c.food} rations/an</b> → population max <b>${c.cap}</b></div>
@@ -577,55 +597,90 @@ function closeDraft() {
    Chaque ligne explique pourquoi agir et mène à l'endroit où agir.
    ===================================================================== */
 function renderTodo() {
-  const items = [], M = getModifiers();
-  const add = (kind, text, action, label) => items.push({ kind, text, action, label });
+  const items = [];
+  // do = action directe (bouton principal, vert) · go = navigation (bouton secondaire « Voir »)
+  const add = (kind, text, act, go) => items.push({ kind, text, act, go });
+  const view = (v, label = 'Voir') => ({ js: `goToView('${v}')`, label });
+  const site = i => ({ js: `goToSite(${i})`, label: 'Voir' });
+  const free = c => c.used < c.slots;
+  const buildAct = (i, k, c) => {
+    const a = ARCH.find(x => x.k === k), cost = bCost(i, a);
+    if (a.tech && !has(a.tech)) return researchAct(a.tech);
+    if (!free(c) || state.budget < cost) return null;
+    return { js: `build(${i},'${k}')`, label: `${ARCH_INFO[k].cat} · ${money(cost)}` };
+  };
+  const researchAct = id => {
+    const t = TECH.find(x => x.id === id);
+    return ready(t) && state.rp >= t.rp ? { js: `researchTech('${id}')`, label: `Rechercher ${id} · ${t.rp} PR` } : { js: `goToTech('${id}')`, label: `Voir ${id}` };
+  };
 
   if (state.event)
-    add('urgent', `Événement : ${EVENT_BY_ID[state.event.id].name}, une décision est attendue.`, 'showEvent()', 'Décider');
+    add('urgent', `Événement : ${EVENT_BY_ID[state.event.id].name}, une décision est attendue.`, { js: 'showEvent()', label: 'Décider' });
   if (state.offer && state.offer.length)
-    add('urgent', 'L’ONU attend votre choix parmi 3 objectifs.', 'showDraft()', 'Choisir');
+    add('urgent', 'L’ONU attend votre choix parmi 3 objectifs.', { js: 'showDraft()', label: 'Choisir' });
   if (state.confidence < BALANCE.confidence.warn)
-    add('urgent', `Confiance à ${Math.round(state.confidence)} % : la révocation est proche, et la subvention ONU est faible.`, "goToView('contracts')", 'Objectifs');
+    add('urgent', `Confiance à ${Math.round(state.confidence)} % : la révocation est proche, et la subvention ONU est faible.`, null, view('contracts', 'Objectifs'));
 
   state.sites.forEach((s, i) => {
     if (!s.colonized) return;
     const c = siteCalc(i), S = SITES[i];
-    const producers = (s.b.mine || 0) + (s.b.lab || 0) + (s.b.spec || 0) + (s.project ? 1 : 0);
-    if (c.energyRatio < 1 && producers) add('warn', `${S.n} : énergie à ${Math.round(c.energyRatio * 100)} %, la production est ralentie.`, `goToSite(${i})`, 'Centrale');
-    if (c.staff < 0.9 && c.need) add('warn', `${S.n} : ${Math.round(c.pop)} habitants pour ${Math.round(c.need)} travailleurs requis (effectif ${Math.round(c.staff * 100)} %).`, `goToSite(${i})`, 'Agrandir');
-    if (popGrowth(i) <= 0.05 && c.pop >= c.cap - 1)
-      add('warn', `${S.n} : population bloquée par les ${c.limit === 'food' ? 'rations (serre)' : 'places (logement)'}.`, `goToSite(${i})`, 'Construire');
-    if (c.used < c.slots) add('', `${S.n} : ${c.slots - c.used} emplacement${c.slots - c.used > 1 ? 's' : ''} libre${c.slots - c.used > 1 ? 's' : ''}.`, `goToSite(${i})`, 'Construire');
+    const producers = (s.b.mine || 0) + (s.b.lab || 0) + (s.b.gov || 0) + (s.b.spec || 0) + (s.project ? 1 : 0);
+    const needK = c.limit === 'food' ? 'farm' : 'hab';
+    if (c.energyRatio < 1 && producers)
+      add('warn', `${S.n} : énergie à ${Math.round(c.energyRatio * 100)} %, la production est ralentie.`, buildAct(i, 'power', c), site(i));
+    if (c.staff < 0.9 && c.need)
+      add('warn', `${S.n} : ${Math.round(c.pop)} habitants pour ${Math.round(c.need)} travailleurs requis (effectif ${Math.round(c.staff * 100)} %). Il faut plus d’habitants.`, buildAct(i, needK, c), site(i));
+    else if (popGrowth(i) <= 0.05 && c.pop >= c.cap - 1)
+      add('warn', `${S.n} : population bloquée par les ${c.limit === 'food' ? 'rations' : 'places'}.`, buildAct(i, needK, c), site(i));
     if (s.b.spec && s.eff !== undefined && s.eff < 0.9)
-      add('warn', `${S.n} : Gros projet à ${Math.round(s.eff * 100)} % d’efficacité (travailleurs ou énergie), son effet global est réduit.`, `goToSite(${i})`, 'Voir');
-    if (!s.b.spec && !s.project && has(S.st) && c.used < c.slots)
-      add('', `${S.n} : Gros projet « ${S.nm[5]} » disponible (${money(bCost(i, ARCH[5]))}).`, `goToSite(${i})`, 'Voir');
+      add('warn', `${S.n} : Gros projet à ${Math.round(s.eff * 100)} % d’efficacité (travailleurs ou énergie), son effet global est réduit.`, null, site(i));
+    if (!s.b.spec && !s.project && has(S.st) && free(c) && state.budget >= bCost(i, ARCH[5]))
+      add('', `${S.n} : Gros projet « ${bName(i, 'spec')} » possible.`, { js: `build(${i},'spec')`, label: `Lancer · ${money(bCost(i, ARCH[5]))}` }, site(i));
+    else if (free(c))
+      add('', `${S.n} : ${c.slots - c.used} emplacement${c.slots - c.used > 1 ? 's' : ''} libre${c.slots - c.used > 1 ? 's' : ''}.`, null, { js: `goToSite(${i})`, label: 'Construire' });
   });
 
-  MEGA.forEach(m => {
-    if (!state.mega[m.id] && has(m.tech) && state.budget >= m.cost)
-      add('', `Mégastructure possible : <b>${m.name}</b> (${money(m.cost)}, ${m.years} ans).`, "goToView('mega')", 'Voir');
-  });
-  const affordable = TECH.filter(t => !has(t.id) && ready(t) && state.rp >= t.rp);
-  techSuggestions(2).forEach(sg => add('', `Recherche conseillée : <b>${sg.id} · ${tname(sg.id)}</b> (${sg.rp} PR${state.rp >= sg.rp ? '' : ', il manque ' + R(sg.rp - state.rp, 0)}) → ${sg.reason}.`, `goToTech('${sg.id}')`, 'Voir'));
-  if (affordable.length) add('', `${affordable.length} technologie${affordable.length > 1 ? 's' : ''} abordable${affordable.length > 1 ? 's' : ''} avec vos ${R(state.rp, 0)} PR.`, "goToView('tech')", 'Rechercher');
+  techSuggestions(2).forEach(sg => add('', `Recherche conseillée : <b>${sg.id} · ${tname(sg.id)}</b> → ${sg.reason}.`, researchAct(sg.id), { js: `goToTech('${sg.id}')`, label: 'Voir' }));
 
   SITES.forEach((S, i) => {
     const s = state.sites[i];
     if (!s.colonized && !s.mission && !missingReqs(i).length && state.budget >= missionCost(i))
-      add('', `Mission d’installation possible vers ${S.n} (${money(missionCost(i))}, ${duration(i)} an${duration(i) > 1 ? 's' : ''}).`, `goToSite(${i})`, 'Lancer');
+      add('', `Mission d’installation possible vers ${S.n} (${duration(i)} an${duration(i) > 1 ? 's' : ''}).`, { js: `launch(${i})`, label: `Lancer · ${money(missionCost(i))}` }, site(i));
   });
-
+  MEGA.forEach(m => {
+    if (!state.mega[m.id] && has(m.tech) && state.budget >= m.cost)
+      add('', `Mégastructure possible : <b>${m.name}</b> (${m.years} ans).`, { js: `buildMega('${m.id}')`, label: `Lancer · ${money(m.cost)}` }, view('mega'));
+  });
   state.contracts.filter(c => !c.done && !c.failed && c.deadline - state.year <= 3).forEach(c =>
-    add('warn', `Objectif bientôt échu (fin ${c.deadline}) : ${contractName(c)}.`, "goToView('contracts')", 'Voir'));
+    add('warn', `Objectif bientôt échu (fin ${c.deadline}) : ${contractName(c)}.`, null, view('contracts')));
 
   const rank = { urgent: 0, warn: 1, '': 2 };
   items.sort((a, b) => rank[a.kind] - rank[b.kind]);
   $('todoCount').textContent = items.length ? items.length : '';
   $('todo').innerHTML = items.length
-    ? items.slice(0, 9).map(it => `<div class="todo-item ${it.kind}"><span>${it.text}</span><button class="btn" onclick="${it.action}">${it.label} →</button></div>`).join('')
-      + (items.length > 9 ? `<p class="muted">… et ${items.length - 9} autre${items.length > 10 ? 's' : ''}.</p>` : '')
+    ? items.slice(0, 10).map(it => `<div class="todo-item ${it.kind}"><span>${it.text}</span><div class="todo-btns">
+        ${it.act ? `<button class="btn primary" onclick="${it.act.js}">${it.act.label}</button>` : ''}
+        ${it.go ? `<button class="btn" onclick="${it.go.js}">${it.go.label} →</button>` : ''}</div></div>`).join('')
+      + (items.length > 10 ? `<p class="muted">… et ${items.length - 10} autre${items.length > 11 ? 's' : ''}.</p>` : '')
     : '<p class="muted">Rien d’urgent : vous pouvez avancer d’un an.</p>';
+}
+
+/* Objectifs ONU en cours, directement sur le Centre de commandement */
+function renderCockpitContracts() {
+  const active = state.contracts.filter(c => !c.done && !c.failed).sort((a, b) => a.deadline - b.deadline);
+  const grant = grantNow();
+  $('cockpitContracts').innerHTML =
+    `<p class="muted cc-head">Confiance ${Math.round(state.confidence)} % → subvention ONU <b>${money(grant)}/an</b>${state.offer ? ' · <a class="linkbtn" onclick="showDraft()">nouvelle offre à trancher</a>' : ''}</p>`
+    + (active.length ? active.map(c => {
+      const def = CONTRACT_BY_ID[c.id], left = c.deadline - state.year, target = c.target || def.target;
+      const cur = def.val ? def.val(state) : null;
+      const pct = cur !== null ? Math.max(0, Math.min(100, cur / target * 100)) : (contractOk(c) ? 100 : 0);
+      return `<div class="cc ${left <= 3 ? 'soon' : ''}">
+        <div class="cc-top">${c.tier ? `<span class="tier ${c.tier}">${BALANCE.contracts.tiers[c.tier].label}</span>` : ''}<span>${contractName(c)}</span></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="cc-meta">${cur !== null ? `${Number.isInteger(cur) || cur >= 100 ? Math.round(cur) : R(cur, 1)} / ${target} ${def.unit} · ` : ''}${def.hold ? 'tenir' : 'fin'} ${c.deadline} (${left > 0 ? left + ' an' + (left > 1 ? 's' : '') : 'dernière année'}) · <b class="positive">${payoutText(contractPayout(c))}</b> / <span class="negative">${c.penalty ?? def.penalty}</span></div>
+      </div>`;
+    }).join('') : '<p class="muted">Aucun objectif en cours.</p>');
 }
 
 /* =====================================================================
@@ -829,7 +884,7 @@ function renderTechSide() {
   // Ce que la techno débloque : missions, bâtiments généraux, bâtiments spéciaux
   const unlocks = [
     ...SITES.filter(S => [].concat(S.req || []).includes(t.id)).map(S => 'Requise pour la mission d’installation vers ' + S.n),
-    ...ARCH.filter(a => a.tech === t.id).map(a => 'Bâtiment : ' + ({ farm: 'serres', power: 'centrales', lab: 'laboratoires', mine: 'mines' }[a.k] || a.k)),
+    ...ARCH.filter(a => a.tech === t.id).map(a => 'Bâtiment : ' + ARCH_INFO[a.k].cat),
     ...SITES.filter(S => S.st === t.id).map(S => S.nm[5] + ' · ' + S.n),
   ];
   const dependants = TECH.filter(x => x.prerequisites.includes(t.id));

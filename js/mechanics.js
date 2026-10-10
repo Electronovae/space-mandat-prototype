@@ -85,6 +85,7 @@ function siteCalc(i) {
   // Effectif : population disponible / équipage nécessaire
   const need  = ((n('lab') + n('mine')) * B.staffing.perProducer
                + n('power') * B.staffing.perPower
+               + n('gov') * B.staffing.perGov
                + n('spec') * B.staffing.perProject) * (1 - M.crew);
   const staff = need > 0
     ? Math.max(B.staffing.min, Math.min(B.staffing.max, s.pop / need))
@@ -93,7 +94,7 @@ function siteCalc(i) {
   // Bonus de production des centrales
   const energyProduced = n('power') * B.economy.energy.powerPerCentral * sp('power') * (1 + M.energy);
   const energyRequired = n('lab') * B.economy.energy.labUse + n('mine') * B.economy.energy.mineUse
-    + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse
+    + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse + n('gov') * B.economy.energy.govUse
     + (n('spec') + (s.project && !s.project.done ? 1 : 0)) * B.economy.energy.projectUse;
   // Réseau énergétique interplanétaire : un seul bilan pour toutes les colonies
   const pooled = gridOn() ? energyPool(M) : null;
@@ -111,6 +112,7 @@ function siteCalc(i) {
 
   // Recherche : labos + Gros projet
   const res = (n('lab') * B.economy.labOutput * sp('lab') * (1 + M.lab)
+             + n('gov') * B.economy.govOutput
              + n('spec') * (x.research || 0)) * F * staff * energy;
 
   // Entretien : chaque bâtiment coûte (coût de base × distance × taux)
@@ -125,7 +127,7 @@ function siteCalc(i) {
     slots: B.colony.baseSlots + Math.floor(s.pop / B.colony.popPerSlot),
     used: Object.values(s.b).reduce((a, b) => a + b, 0) + (s.project && !s.project.done ? 1 : 0),
     staff, bud, res, upk,
-    conf: n('spec') * (x.conf || 0),
+    conf: n('spec') * (x.conf || 0) + n('gov') * B.economy.govConf,
     energyProduced, energyRequired, energyRatio, pooled: !!pooled,
     project: s.project,
   };
@@ -143,7 +145,7 @@ const gridOn = () => !!(state.mega && state.mega.grid && state.mega.grid.done);
 function siteEnergy(i, M) {
   const S = SITES[i], s = state.sites[i], E = BALANCE.economy.energy, n = k => s.b[k] || 0;
   const prod = n('power') * E.powerPerCentral * (S.sp.power || 1) * (1 + M.energy);
-  const req = n('lab') * E.labUse + n('mine') * E.mineUse + n('farm') * E.farmUse + n('hab') * E.habUse
+  const req = n('lab') * E.labUse + n('mine') * E.mineUse + n('farm') * E.farmUse + n('hab') * E.habUse + n('gov') * E.govUse
             + (n('spec') + (s.project && !s.project.done ? 1 : 0)) * E.projectUse;
   return { prod, req };
 }
@@ -288,9 +290,31 @@ function refreshProjectEfficiency() {
 }
 
 /* Énergie consommée par un bâtiment de type k (0 pour les centrales) */
-const ENERGY_KEY = { lab: 'labUse', mine: 'mineUse', farm: 'farmUse', hab: 'habUse' };
+const ENERGY_KEY = { lab: 'labUse', mine: 'mineUse', farm: 'farmUse', hab: 'habUse', gov: 'govUse' };
+
+/* Effet RÉEL de la construction d'un bâtiment de type k sur le site i :
+   on l'ajoute, on recalcule tout (rations, places, travailleurs, énergie, entretien,
+   rendement décroissant des mines…), puis on l'enlève. Les valeurs affichées au joueur
+   viennent de là, donc elles sont tenues une fois le bâtiment construit. */
+function buildPreview(i, k) {
+  const s = state.sites[i];
+  const c0 = siteCalc(i), T0 = totals();
+  s.b[k] = (s.b[k] || 0) + 1;
+  let c1, T1;
+  try { c1 = siteCalc(i); T1 = totals(); }
+  finally { s.b[k]--; if (!s.b[k]) delete s.b[k]; }
+  return {
+    cap: c1.cap - c0.cap, places: c1.places - c0.places, food: c1.food - c0.food, limit: c1.limit,
+    net: (T1.bud - T1.upk) - (T0.bud - T0.upk), res: T1.res - T0.res, conf: T1.conf - T0.conf,
+    energy: c1.energyRatio - c0.energyRatio, staff: Math.min(1, c1.staff) - Math.min(1, c0.staff),
+  };
+}
+
+/* Nom d'un bâtiment sur un astre (les types ajoutés après coup ont un nom générique) */
+const bName = (i, k) => SITES[i].nm[ARCH.findIndex(a => a.k === k)] || ARCH_INFO[k].name || ARCH_INFO[k].cat;
 const energyUseOf = k => ENERGY_KEY[k] ? BALANCE.economy.energy[ENERGY_KEY[k]] : k === 'spec' ? BALANCE.economy.energy.projectUse : 0;
 
 /* Travailleurs requis par un bâtiment de type k (avant bonus « crew ») */
 const workersOf = k => (k === 'lab' || k === 'mine') ? BALANCE.staffing.perProducer
-  : k === 'power' ? BALANCE.staffing.perPower : k === 'spec' ? BALANCE.staffing.perProject : 0;
+  : k === 'power' ? BALANCE.staffing.perPower : k === 'gov' ? BALANCE.staffing.perGov
+  : k === 'spec' ? BALANCE.staffing.perProject : 0;

@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## v1.5 : cockpit actionnable, gouvernance, orbite basse
+
+- **Réglages** : travailleurs +50 % (mine/labo 30, centrale 15, Gros projet 45), un emplacement tous les 13 habitants au lieu de 20 (+50 %). Pour compenser : mine 3 → 4 M/an, gigantisme 5 % → 2 % par bâtiment, mégastructures plus chères (2 000 à 22 000 M).
+- **Valeurs affichées = effet réel** : chaque ligne de construction simule le bâtiment sur la colonie (places et rations, travailleurs, énergie, entretien, filons) et affiche « effet réel ici : population max +30 (limité par les rations) · +2,1 M/an net… ».
+- **Gouvernance** : nouveau bâtiment (S01, 2 par astre) : PR + confiance, 20 travailleurs, 1 énergie.
+- **Orbite basse** : nouvelle destination, la plus proche (15 M, 1 an), labos +20 %, Gros projet « Station orbitale internationale ».
+- **12 objectifs ONU** de plus (orbite basse, gouvernance, énergie, rations, Gros projets, PR, revenu, population, réseau énergétique, mégastructures, et deux objectifs « à tenir » : aucune colonie en manque d'énergie, toutes à plein effectif).
+- **Cockpit actionnable** : « À décider » propose des actions en un clic (construire la serre ou le logement qui manque, la centrale, rechercher la techno conseillée, lancer une mission, un Gros projet, une mégastructure), avec un bouton « Voir » à côté. Les objectifs ONU en cours et la subvention qu'ils protègent sont affichés sur le Centre de commandement.
+- **Tutoriel** : refait, ancré dans la barre latérale (plus aucune pop-up sur le jeu), 7 étapes « objectif + comment », validées automatiquement quand l'action est faite ; l'élément concerné est seulement surligné.
+- **Bugs** : contenu principal décalé de ~115 px sur les vues courtes (`.main { margin: auto }`) ; plantage de l'événement « Percée scientifique » quand aucune techno n'est disponible.
+
 ## v1.4 : mégastructures et draft honnête
 
 - **Mégastructures** (nouvel onglet) : 6 projets de civilisation, payés au lancement, chantier de 6 à 15 ans, effets appliqués au-delà des plafonds des technologies, points au bilan final.

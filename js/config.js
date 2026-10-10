@@ -80,7 +80,7 @@ const BALANCE = {
     arrivalPop: 15,     // population à l'arrivée de la mission
     arrivalConf: 3,     // + confiance gagnée quand une colonie est établie
     baseSlots: 3,       // emplacements de bâtiments au départ
-    popPerSlot: 20,     // +1 emplacement tous les N habitants
+    popPerSlot: 13,     // +1 emplacement tous les N habitants (20 avant : +50 % de vitesse)
   },
 
   // --- Population -----------------------------------------------------
@@ -104,28 +104,31 @@ const BALANCE = {
   // L'effectif multiplie la production des mines/labos/spéciaux.
   // v1.1 : 8 travailleurs par mine pour 60 habitants → effectif toujours au plafond, mécanique inutile
   staffing: {
-    perProducer: 20,    // travailleurs requis par labo ou mine
-    perPower: 10,       // travailleurs requis par centrale
-    perProject: 30,     // travailleurs requis par Gros projet achevé
+    perProducer: 30,    // travailleurs requis par labo ou mine (+50 % en v1.5)
+    perPower: 15,       // travailleurs requis par centrale
+    perGov: 20,         // travailleurs requis par centre de gouvernance
+    perProject: 45,     // travailleurs requis par Gros projet achevé
     min: 0.2,           // effectif plancher (20 %)
     max: 1.0,           // effectif plafond (plus de bonus de sureffectif)
   },
 
   // --- Économie -------------------------------------------------------
   economy: {
-    mineIncome: 3,      // M/an par mine (× spéc × F × effectif × énergie)
+    mineIncome: 4,      // M/an par mine (× spéc × F × effectif × énergie)
     mineDecay: 0.88,    // filons de moins en moins riches : la k-ième mine d'une colonie rapporte 0,88^(k−1)
     labOutput: 3.6,       // RP/an par labo (× spéc × F × effectif × énergie)
+    govOutput: 2.5,       // PR/an par centre de gouvernance (× F × effectif × énergie, sans spécialité)
+    govConf: 0.15,        // + confiance/an par centre de gouvernance
     popTax: 0.08,       // M/an par habitant (non multiplié par F)
     powerBonus: 0.15,   // bonus de production par centrale, après bilan énergétique
     energy: {
       powerPerCentral: 12,  // unités d'énergie produites/an par centrale
-      labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1,
+      labUse: 2, mineUse: 1, farmUse: 1, habUse: 0.1, govUse: 1,
       projectUse: 6,       // un Gros projet consomme en chantier ET une fois achevé
       deficitFloor: 0.35,  // une colonie déficitaire conserve au moins 35 % de sa production
     },
     upkeepRate: 0.055,   // entretien/an = Σ(nb bâtiments × coût de base × distance) × 5,5 %
-    upkeepScale: 0.05,   // gigantisme : +5 % d'entretien par bâtiment déjà présent dans la colonie
+    upkeepScale: 0.02,   // gigantisme : +5 % d'entretien par bâtiment déjà présent dans la colonie
     // Les bâtiments qui RAPPORTENT de l'argent (mines, Gros projets à revenus) n'ont pas d'entretien.
     deficitConfPenalty: 2, // perte de confiance si le budget passe sous 0 (le budget est remis à 0)
   },
@@ -211,7 +214,7 @@ const BALANCE = {
               global    { levier: valeur } bonus appliqués à TOUTES les colonies (leviers de ZERO,
                         ex. travel, launch, build, cap, grow, mine, lab, power, energy, reward)
    --------------------------------------------------------------------- */
-const SITES = [
+const SITES = [   // l'ordre fixe l'index (sauvegardes) ; l'affichage trie par distance
   { n:'Lune',     label:'LUNE',     d:1.2, c:30,  w:2,  req:['M01'],  st:'M01', sp:{mine:1.3},            tag:'Hélium-3 · mines +30 %',
     nm:['Base souterraine','Serre en lave-tube','Labo lunaire','Mine de régolithe','Champ solaire polaire','Extracteur d’hélium-3'], x:{budget:12, global:{energy:1}} },
 
@@ -261,6 +264,10 @@ const SITES = [
 
   { n:'TRAPPIST-1 e',  label:'TRAPPIST',  exo:true, ly:40.7, d:26, c:380, w:40, req:['P17','S14'], st:'S09', sp:{hab:1.5, farm:1.4, lab:1.2}, tag:'Le grand projet · 40,7 al · habitats +50 %',
     nm:['Métropole planétaire','Biome synthétique','Institut interstellaire','Mine de fond de puits','Réseau de fusion','Capitale de l’humanité'], x:{cap:350, research:14, conf:1.5, global:{reward:0.5}} },
+
+  /* --- Ajout v1.5 : l'orbite basse, première marche (placée en fin de tableau pour les sauvegardes) */
+  { n:'Orbite basse', label:'ORBITE', d:1.0, c:15, w:1, req:null, st:'P01', sp:{lab:1.2, mine:0.6}, tag:'Station orbitale · labos +20 %, peu de ressources',
+    nm:['Module habitable','Serre hydroponique','Module laboratoire','Récupération de débris','Ailes solaires','Station orbitale internationale'], x:{research:6, global:{launch:0.15}} },
 ];
 
 
@@ -282,6 +289,7 @@ const ARCH = [
   { k:'mine',  ic:'⛏', c:25, tech:'M01' },       // mine : budget (ISRU lunaire)
   { k:'power', ic:'⚡', c:28, tech:'E01' },       // énergie : bonus % de production du site
   { k:'spec',  ic:'✦', c:180, max:1, project:true },  // Gros projet : coût élevé, chantier pluriannuel, travailleurs + énergie
+  { k:'gov',   ic:'⚖', c:26, tech:'S01', max:2 },   // gouvernance : PR + un peu de confiance (ajouté en v1.5, nom générique)
 ];
 
 
@@ -297,15 +305,15 @@ const ARCH = [
 const MEGA = [
   { id: 'grid',   name: 'Réseau énergétique interplanétaire', tech: 'E05', cost: 600,   years: 6,  score: 150,
     fx: { grid: 1 }, desc: 'Relie les colonies par faisceaux : l’énergie est mise en commun, le surplus d’un astre couvre le déficit d’un autre.' },
-  { id: 'ring',   name: 'Anneau orbital terrestre',           tech: 'M06', cost: 1500,  years: 8,  score: 250,
+  { id: 'ring',   name: 'Anneau orbital terrestre',           tech: 'M06', cost: 2000,  years: 8,  score: 250,
     fx: { launch: 0.25, build: 0.15, flat: 40 }, desc: 'Un anneau de lancement autour de la Terre : missions et bâtiments bien moins chers, commerce orbital.' },
-  { id: 'onu',    name: 'Cité orbitale de l’ONU',             tech: 'S07', cost: 2500,  years: 8,  score: 300,
+  { id: 'onu',    name: 'Cité orbitale de l’ONU',             tech: 'S07', cost: 3500,  years: 8,  score: 300,
     fx: { grant: 1, conf: 1 }, desc: 'Le siège de l’ONU s’installe en orbite : subvention doublée et confiance qui remonte chaque année.' },
-  { id: 'matrio', name: 'Calculateur matriochka',             tech: 'I12', cost: 5000,  years: 10, score: 400,
+  { id: 'matrio', name: 'Calculateur matriochka',             tech: 'I12', cost: 8000,  years: 10, score: 400,
     fx: { rate: 150, lab: 0.5 }, desc: 'Des coquilles de calcul autour du Soleil : la recherche change d’échelle.' },
-  { id: 'dyson',  name: 'Essaim de Dyson',                    tech: 'E09', cost: 9000,  years: 12, score: 500,
+  { id: 'dyson',  name: 'Essaim de Dyson',                    tech: 'E09', cost: 14000, years: 12, score: 500,
     fx: { energy: 2, flat: 150 }, desc: 'Des millions de collecteurs captent une fraction du Soleil : énergie triplée partout.' },
-  { id: 'ship',   name: 'Vaisseau-monde',                     tech: 'P18', cost: 14000, years: 15, score: 700,
+  { id: 'ship',   name: 'Vaisseau-monde',                     tech: 'P18', cost: 22000, years: 15, score: 700,
     fx: { travel: 0.4, conf: 1.5, cap: 0.5 }, desc: 'Une cité de génération lancée vers les étoiles : trajets raccourcis, places supplémentaires partout, fierté de l’humanité.' },
 ];
 const MEGA_BY_ID = Object.fromEntries(MEGA.map(m => [m.id, m]));
@@ -320,6 +328,7 @@ const ARCH_INFO = {
   lab:   { cat: 'Laboratoire', role: 'points de recherche' },
   mine:  { cat: 'Mine',        role: 'revenus (vente des ressources)' },
   power: { cat: 'Centrale',    role: 'énergie pour les autres bâtiments' },
+  gov:   { cat: 'Gouvernance', role: 'administration locale : PR et confiance', name: 'Conseil de colonie' },
   spec:  { cat: 'Gros projet', role: 'bonus majeur propre à l’astre' },
 };
 
@@ -439,6 +448,12 @@ const nSpecials = s => s.sites.reduce((t, x) => t + (x.b.spec || 0), 0);
 const totalPop = s => s.sites.reduce((t, x) => t + x.pop, 0);
 // totals() vient de mechanics.js (appelé à l'exécution, donc disponible)
 const netIncome = () => { const T = totals(); return T.bud - T.upk; };
+const nOf = k => s => s.sites.reduce((t, x) => t + (x.b[k] || 0), 0);
+const energyMade = () => SITES.reduce((t, _, i) => t + (state.sites[i].colonized ? siteCalc(i).energyProduced : 0), 0);
+const rationsMade = () => SITES.reduce((t, _, i) => t + (state.sites[i].colonized ? siteCalc(i).food : 0), 0);
+const megaDone = s => Object.keys(s.mega || {}).filter(id => s.mega[id].done).length;
+const allColonies = test => s => s.sites.filter(x => x.colonized).length >= 2
+  && s.sites.every((x, i) => !x.colonized || test(siteCalc(i)));
 
 // --- Fabriques de contrats --------------------------------------------
 const cSite = (id, name, years, reward, check, extra = {}) =>
@@ -500,6 +515,20 @@ const CONTRACT_POOL = [
   cNum('b10',  'Construire 10 bâtiments au total', 25, 8,  nBuildings, 10, 'bâtiments'),
   cNum('b30',  'Construire 30 bâtiments au total', 45, 16, nBuildings, 30, 'bâtiments', { after: 10 }),
   cNum('spec', 'Construire un Gros projet',   25, 10, nSpecials,  1,  'bâtiment', { scale: false }),
+
+  // --- Ajouts v1.5 ---
+  cSite('orbite',  'Installer une station en orbite basse',            10, 8,  colonised('Orbite basse')),
+  cNum('gov3',     'Construire 3 centres de gouvernance',              25, 12, nOf('gov'), 3, 'centres'),
+  cNum('energy100','Produire 100 unités d’énergie',                    30, 14, energyMade, 100, 'énergie', { after: 8 }),
+  cNum('food800',  'Produire 800 rations par an',                      35, 14, rationsMade, 800, 'rations', { after: 8 }),
+  cNum('spec3',    'Achever 3 Gros projets',                           45, 22, nSpecials, 3, 'Gros projets', { after: 15 }),
+  cNum('rp100',    'Produire 100 PR/an',                               40, 20, () => totals().res, 100, 'PR/an', { after: 15 }),
+  cNum('net300',   'Dégager +300 M/an de revenu net',                  45, 24, netIncome, 300, 'M/an', { after: 25 }),
+  cNum('pop3000',  '3 000 habitants hors de la Terre',                 50, 28, totalPop, 3000, 'hab.', { after: 35 }),
+  cSite('gridmega','Achever le Réseau énergétique interplanétaire',     40, 20, s => !!(s.mega.grid && s.mega.grid.done), { after: 12 }),
+  cNum('mega2',    'Achever 2 mégastructures',                         45, 30, megaDone, 2, 'mégastructures', { after: 30, scale: false }),
+  cSite('noblack', 'Aucune colonie en manque d’énergie pendant 15 ans', 15, 16, allColonies(c => c.energyRatio >= 1), { hold: true, after: 5 }),
+  cSite('fullstaff','Toutes les colonies à plein effectif pendant 15 ans', 15, 16, allColonies(c => c.staff >= 0.99), { hold: true, after: 5 }),
 ];
 
 const CONTRACT_BY_ID = Object.fromEntries(CONTRACT_POOL.map(c => [c.id, c]));

@@ -76,11 +76,11 @@ function build(i, k) {
   state.budget -= cost;
   if (a.project) {
     const years = BALANCE.costs.projectYears;
-    s.project = { done: false, progress: 0, duration: years, name: S.nm[ARCH.indexOf(a)] };
+    s.project = { done: false, progress: 0, duration: years, name: bName(i, k) };
     toast('Gros projet lancé sur ' + S.n + ' · chantier de ' + years + ' ans.');
   } else {
     s.b[k] = (s.b[k] || 0) + 1;
-    toast(S.nm[ARCH.indexOf(a)] + ' construit · ' + S.n);
+    toast(bName(i, k) + ' construit · ' + S.n);
   }
   render();
 }
@@ -91,7 +91,7 @@ function demolish(i, k) {
   const s = state.sites[i];
   if (!s || !s.colonized || !(s.b[k] > 0)) return;
   const a = ARCH.find(x => x.k === k);
-  const label = a ? SITES[i].nm[ARCH.indexOf(a)] : 'Bâtiment';
+  const label = a ? bName(i, k) : 'Bâtiment';
   // Un Gros projet coûte très cher : on demande confirmation
   if (k === 'spec' && typeof confirm === 'function' && !confirm('Détruire « ' + label + ' » ? Aucun remboursement.')) return;
   s.b[k]--;
@@ -287,6 +287,8 @@ function load() {
   state.contracts = state.contracts || [];
   state.effects = state.effects || [];
   state.mega = state.mega || {};
+  // Astres ajoutés depuis la sauvegarde (ex. Orbite basse) : on complète
+  while (state.sites.length < SITES.length) state.sites.push({ colonized: false, pop: 0, b: {}, mission: null, project: null });
   if (state.nextEvent === undefined) state.nextEvent = state.year + 3;
   render();
   toast('Sauvegarde chargée.');
