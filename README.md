@@ -26,6 +26,7 @@ js/
   mechanics.js        formules de calcul (revenus, population, coûts…) — sans DOM
   actions.js          actions du joueur, passage d'année, sauvegarde/chargement
   ui.js               affichage
+  events.js           événements aléatoires (pool, choix, effets temporaires)
   guide.js            guide pas à pas (pop-ups contextuelles)
   main.js             démarrage et navigation
 scripts/

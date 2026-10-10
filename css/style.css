@@ -415,7 +415,7 @@ h1,h2,h3,.brand {
   display: block;
   background: var(--lime);
 }
-/* ===== UN CONTRACTS ===== */
+/* ===== OBJECTIFS ONU ===== */
 .contracts {
   display: grid;
   gap: 10px;
@@ -1116,20 +1116,16 @@ svg.links {
    AJOUTS v1.1 : retours de test (notifications, guide, opérations, arbre, fin de mandat)
    ===================================================================== */
 
-/* ===== Passage d'une année : flottant en bas à droite, toujours visible ===== */
-.turn-dock {
-  position: fixed; right: 20px; bottom: 20px; margin: 0;
-  box-shadow: var(--shadow); background: #10211ef2; backdrop-filter: blur(6px);
-}
+/* ===== Passage d'une année : bandeau sous le HUD, dans le flux (ne suit pas le défilement) ===== */
+.turn-dock { position: static; margin: 0 0 18px; }
 .turn-dock .eyebrow b { color: var(--lime); font-size: 14px; margin-left: 4px; }
 .turn-dock small { display: block; margin-top: 3px; }
-.main { padding-bottom: 110px; }
 
 /* ===== Notifications empilées ===== */
 .toast {
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
   background: none; box-shadow: none; padding: 0;
-  right: 20px; bottom: 96px; z-index: 7; pointer-events: none; max-width: min(420px, calc(100% - 40px));
+  right: 20px; bottom: 20px; z-index: 7; pointer-events: none; max-width: min(420px, calc(100% - 40px));
 }
 .toast-item {
   background: #d8f78a; color: #132018; padding: 10px 14px; border-radius: 4px;
@@ -1166,7 +1162,11 @@ svg.links {
 }
 .build-info .run { color: #6f8b86; font-size: 9px; }
 .build-info strong span { display: inline; margin-top: 0; }
-.build-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.build-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.build-row .btn.danger { font-size: 11px; padding: 8px 12px; min-width: 92px; font-weight: 500; }
+.build-row .btn.danger:hover { background: #4a2430; border-color: var(--danger); color: #ffd0d6; }
+.techside ul.impact { color: var(--ink); }
+.techside ul.impact b { color: var(--lime); font-weight: 500; }
 .btn.short { opacity: .6; }
 em.warn { color: var(--orange); font-style: normal; }
 .build-total div { margin: 2px 0; }
@@ -1214,7 +1214,6 @@ em.warn { color: var(--orange); font-style: normal; }
 .endreport tr.tot td { color: var(--lime); font-size: 13px; border-bottom: 0; }
 
 @media(max-width:900px) {
-  .turn-dock { left: 12px; right: 12px; bottom: 12px; flex-direction: row; }
   .site-meta { grid-template-columns: 1fr 1fr; }
 }
 
@@ -1229,3 +1228,72 @@ em.warn { color: var(--orange); font-style: normal; }
 .map-sys .s8 { left: calc(86.3% - 28px); top: calc(46.8% - 28px); }
 .map-sys .s9 { left: calc(62.1% - 28px); top: calc(83.6% - 28px); }
 .map-sys .s10 { left: calc(15.0% - 28px); top: calc(70.5% - 28px); }
+
+/* =====================================================================
+   v1.2 : tunnel du tour, draft ONU, tuiles de bâtiments
+   ===================================================================== */
+.step {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 50%;
+  background: var(--lime); color: #112018; font: 700 11px Syne, sans-serif; vertical-align: 1px;
+}
+.step.sm { width: 16px; height: 16px; font-size: 9px; margin-right: 4px; }
+.turn-grid { grid-template-columns: 1fr 1fr; }
+.todo { display: grid; gap: 6px; }
+.todo-count { float: right; color: var(--orange); font: 500 11px 'DM Mono', monospace; }
+.todo-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--cyan); background: #0d1d1a; font-size: 11px; line-height: 1.4;
+}
+.todo-item.warn { border-left-color: var(--orange); }
+.todo-item.urgent { border-left-color: var(--danger); background: #26161a; }
+.todo-item .btn { padding: 6px 10px; font-size: 10px; white-space: nowrap; }
+.todo-foot { margin-top: 10px; font-size: 10px; }
+.bilan small { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
+.site, .exo-chip { cursor: pointer; }
+.site-card.flash { box-shadow: 0 0 0 2px var(--lime); transition: box-shadow .3s; }
+.linkbtn { background: none; color: var(--orange); font: inherit; letter-spacing: .12em; padding: 0; }
+.linkbtn:hover { color: var(--lime); }
+b.glob { color: var(--lime); font-weight: 500; }
+
+/* Tuiles des bâtiments construits */
+.tiles { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.tile {
+  width: 64px; padding: 6px 4px; text-align: center; border: 1px solid var(--line); background: #13261f;
+  font-size: 18px; color: var(--cyan); line-height: 1.1;
+}
+.tile b { display: block; font: 500 11px 'DM Mono', monospace; color: var(--ink); margin-top: 3px; }
+.tile small { display: block; font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+.tile.spec { border-color: var(--lime); color: var(--lime); }
+.tile.spec.build { border-style: dashed; }
+.tile.free { border-style: dashed; color: #4b6f68; background: none; font-size: 16px; }
+.build-menu summary { cursor: pointer; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 0; }
+.build-menu[open] summary { color: var(--lime); }
+
+/* Paliers des objectifs */
+.tier { font: 500 9px 'DM Mono', monospace; padding: 2px 6px; border-radius: 999px; border: 1px solid; vertical-align: 1px; letter-spacing: .05em; text-transform: uppercase; }
+.tier.easy { color: var(--cyan); border-color: #3c7a73; }
+.tier.medium { color: var(--yellow); border-color: #7a6a3c; }
+.tier.hard { color: var(--orange); border-color: #83573b; }
+
+/* Draft ONU */
+.modal .card.draftbox { max-width: 860px; }
+.draft-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.draft-card { border: 1px solid var(--line); background: #0d1d1a; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.draft-card.hard { border-color: #83573b; }
+.draft-card h4 { margin: 4px 0 0; font: 600 13px Syne, sans-serif; color: var(--ink); line-height: 1.3; }
+.draft-card p { font-size: 10px; }
+.draft-card .prog { color: var(--muted); font-size: 10px; }
+.draft-pay { display: flex; flex-direction: column; gap: 3px; font-size: 11px; margin-top: auto; padding-top: 6px; }
+.draft-card .btn { margin-top: 6px; }
+@media(max-width:900px) {
+  .turn-grid, .draft-cards { grid-template-columns: 1fr; }
+}
+
+/* ===== Événements aléatoires ===== */
+.modal .card.eventbox { max-width: 520px; }
+.eventbox .eyebrow.bad { color: var(--danger); }
+.eventbox .eyebrow.good { color: var(--lime); }
+.event-opts { display: grid; gap: 8px; margin-top: 16px; }
+.event-opt { text-align: left; display: flex; flex-direction: column; gap: 3px; }
+.event-opt small { font-size: 10px; opacity: .8; }
+.event-opt:disabled { opacity: .45; cursor: not-allowed; transform: none; }

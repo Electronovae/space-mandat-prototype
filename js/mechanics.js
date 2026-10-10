@@ -19,12 +19,14 @@ function getModifiers() {
     for (const lever in FX[id]) m[lever] += FX[id][lever];
   });
 
-  // Bâtiments spéciaux : certains réduisent les coûts sur TOUS les sites
+  // Effets temporaires des événements aléatoires
+  (state.effects || []).forEach(e => { if (e.until > state.year && e.lever in m) m[e.lever] += e.value; });
+
+  // Gros projets achevés : bonus globaux (toutes colonies), voir SITES[i].x.global
   state.sites.forEach((s, i) => {
-    if (!s.colonized) return;
-    const nSpec = s.b.spec || 0;
-    m.launch += nSpec * (SITES[i].x.launch || 0);
-    m.build  += nSpec * (SITES[i].x.build  || 0);
+    if (!s.colonized || !s.b.spec) return;
+    const g = SITES[i].x.global || {};
+    for (const lever in g) if (lever in m) m[lever] += g[lever] * s.b.spec;
   });
 
   const caps = BALANCE.caps;
@@ -33,6 +35,8 @@ function getModifiers() {
   m.travel = Math.min(caps.travel, m.travel);
   m.crew   = Math.min(caps.crew,   m.crew);
   m.far    = Math.min(caps.far,    m.far);
+  m.lab    = Math.min(caps.lab,    m.lab);
+  m.mine   = Math.min(caps.mine,   m.mine);
   m.conf   = Math.min(caps.conf,   m.conf);
   return m;
 }
@@ -74,7 +78,7 @@ function siteCalc(i) {
     : 1;
 
   // Bonus de production des centrales
-  const energyProduced = n('power') * B.economy.energy.powerPerCentral * sp('power');
+  const energyProduced = n('power') * B.economy.energy.powerPerCentral * sp('power') * (1 + M.energy);
   const energyRequired = n('lab') * B.economy.energy.labUse + n('mine') * B.economy.energy.mineUse
     + n('farm') * B.economy.energy.farmUse + n('hab') * B.economy.energy.habUse
     + (s.project && !s.project.done ? B.economy.energy.projectUse : 0);
@@ -91,7 +95,7 @@ function siteCalc(i) {
              + n('spec') * (x.research || 0)) * F * energy;
 
   // Entretien : chaque bâtiment coûte (coût de base × distance × taux)
-  const upk = ARCH.reduce((t, a) => t + n(a.k) * a.c * S.d * B.economy.upkeepRate, 0);
+  const upk = ARCH.reduce((t, a) => t + n(a.k) * a.c * S.d * B.economy.upkeepRate, 0) * upkeepMult(i);
 
   return {
     pop: s.pop,
@@ -113,10 +117,19 @@ function siteCalc(i) {
    bud = revenus · upk = entretien · res = recherche · pop = population
    conf = variation annuelle de confiance
    --------------------------------------------------------------------- */
+/* Subvention annuelle de l'ONU (dépend de la confiance) */
+function grantNow(st = state) {
+  const G = BALANCE.grant;
+  const boost = (st.effects || []).filter(e => e.lever === 'grant' && e.until > st.year).reduce((t, e) => t + e.value, 0);
+  return G.perPoint * Math.max(0, st.confidence - G.floor) * (1 + G.growth * (st.year - st.startYear)) * Math.max(0, 1 + boost);
+}
+
 function totals() {
   const M = getModifiers();
+  const grant = grantNow();
   const t = {
-    bud: M.flat,
+    grant,
+    bud: M.flat + grant,
     upk: 0,
     res: BALANCE.research.baseRate + M.rate,
     pop: 0,
@@ -195,6 +208,20 @@ const missingReqs = i => siteReqs(i).filter(id => !has(id));
    technologies « reward » s'applique ensuite à tous les types.
    (Anciennes sauvegardes sans type : confiance.)
    --------------------------------------------------------------------- */
+/* Objectif atteint ? Les objectifs chiffrés ont une cible propre (relevée par le palier du draft). */
+function contractOk(c, st = state) {
+  const def = CONTRACT_BY_ID[c.id];
+  return def.val && c.target ? def.val(st) >= c.target : def.check(st);
+}
+
+/* Nom affiché d'un objectif : la cible relevée par le palier remplace celle du libellé */
+const fmtNum = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+function contractName(c) {
+  const def = CONTRACT_BY_ID[c.id];
+  if (!c.target || c.target === def.target) return def.name;
+  return def.name.replace(fmtNum(def.target), fmtNum(c.target));
+}
+
 function contractPayout(c) {
   const def = CONTRACT_BY_ID[c.id];
   const kind = c.kind || 'conf';
@@ -202,8 +229,10 @@ function contractPayout(c) {
   return { kind, amount: base * (1 + getModifiers().reward) };
 }
 
-/* Entretien annuel d'UN bâtiment de type a sur le site i (même formule que siteCalc) */
-const upkeepOf = (i, a) => a.c * SITES[i].d * BALANCE.economy.upkeepRate;
+/* Entretien annuel d'un seul bâtiment de type a sur le site i (même formule que siteCalc) */
+/* Gigantisme : plus une colonie compte de bâtiments, plus chacun coûte à entretenir */
+const upkeepMult = i => 1 + BALANCE.economy.upkeepScale * Object.values(state.sites[i].b).reduce((a, b) => a + b, 0);
+const upkeepOf = (i, a) => a.c * SITES[i].d * BALANCE.economy.upkeepRate * upkeepMult(i);
 
 /* Énergie consommée par un bâtiment de type k (0 pour les centrales) */
 const ENERGY_KEY = { lab: 'labUse', mine: 'mineUse', farm: 'farmUse', hab: 'habUse' };

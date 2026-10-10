@@ -31,7 +31,7 @@
     <div class="side-foot">
       SECTEUR SOLAIRE · A-01<br>
       Mandat actif · <span style="color:var(--lime)" id="mandateLen">80 ans</span><br><br>
-      v1.1 prototype<br>Simulation locale
+      v1.2 prototype<br>Simulation locale
     </div>
   </aside>
 
@@ -78,41 +78,50 @@
     </section>
 
 
+    <!-- Passage d'une année : reste à sa place sous le HUD (ne suit pas le défilement) -->
+    <div class="turn-dock" role="region" aria-label="Contrôle du temps">
+      <div><span class="eyebrow"><span class="step sm">3</span> CYCLE DU MANDAT · ANNÉE <b id="dockYear">2026</b></span><small id="dockHint">Raccourci : touche N</small></div>
+      <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
+    </div>
+
     <!-- ============================ VUE : CENTRE DE COMMANDEMENT ============================ -->
     <div id="command" class="view active">
-      <div class="notice" id="briefing">★ <b>Briefing.</b> Lancez une mission d’installation depuis <b>Opérations</b> (LAGRANGE 1 est accessible tout de suite), puis construisez logements et serres pour faire grandir la colonie.</div>
-      <div class="grid">
+      <!-- Tunnel du tour : ① rapport de l'année → ② décisions → ③ avancer (bandeau du haut) -->
+      <div class="grid turn-grid">
+        <div class="card">
+          <h3><span class="step">1</span> Rapport de l’année</h3>
+          <div class="bilan" id="bilan">
+            <div><span>Revenus</span><b>…</b></div>
+            <div><span>Entretien</span><b>…</b></div>
+            <div><span>Net</span><b>…</b></div>
+          </div>
+          <div class="events" id="events"><p class="muted">Les événements de l’année apparaîtront ici.</p></div>
+        </div>
+        <div class="card">
+          <h3><span class="step">2</span> À décider cette année <span id="todoCount" class="todo-count"></span></h3>
+          <div class="todo" id="todo"></div>
+          <p class="muted todo-foot">Puis <span class="step sm">3</span> avancez d’un an (bandeau du haut ou touche N).</p>
+        </div>
+      </div>
 
+      <div class="grid" style="margin-top:14px">
         <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
         <div class="card map-card">
           <h3>Carte du système solaire <span id="mapCount" style="float:right;color:var(--muted);font:10px 'DM Mono'"></span></h3>
           <div class="map-sys">
             <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
             <div id="mapSites"></div>
-            <div class="legend">sous chaque astre : durée du trajet · plus c’est loin, plus ça rapporte · agir depuis Opérations</div>
+            <div class="legend">sous chaque astre : durée du trajet · cliquez un astre pour l’ouvrir dans Opérations</div>
           </div>
           <div class="map-ext">
             <div class="map-ext-title">ESPACE INTERSTELLAIRE · exoplanètes (propulsion avancée requise)</div>
             <div class="map-ext-row" id="mapExo"></div>
           </div>
         </div>
-
-        <div>
-          <div class="card">
-            <h3>Activité en cours</h3>
-            <div class="mission-list" id="activity"></div>
-          </div>
-          <div class="card" style="margin-top:14px">
-            <h3>Bilan de l’année</h3>
-            <div class="bilan" id="bilan">
-              <div><span>Revenus</span><b>—</b></div>
-              <div><span>Entretien</span><b>…</b></div>
-              <div><span>Net</span><b>—</b></div>
-            </div>
-            <div class="events" id="events"><p class="muted">Les événements de l’année apparaîtront ici.</p></div>
-          </div>
+        <div class="card">
+          <h3>Activité en cours</h3>
+          <div class="mission-list" id="activity"></div>
         </div>
-
       </div>
     </div>
 
@@ -128,7 +137,7 @@
     <!-- ============================ VUE : CONTRATS ============================ -->
     <div id="contracts" class="view">
       <div class="section-head">
-        <div><h2>Objectifs ONU</h2><p>L’ONU vous fixe des objectifs, tirés au hasard à chaque partie, puis un nouveau tous les 7 ans. Réussir rapporte confiance, budget ou PR ; échouer coûte de la confiance.</p></div>
+        <div><h2>Objectifs ONU</h2><p>Tous les 5 ans, l’ONU vous propose 3 objectifs de difficulté croissante : vous en choisissez un. Réussir rapporte confiance, budget ou PR ; échouer coûte de la confiance, et la confiance fixe la subvention annuelle de l’ONU.</p></div>
         <span class="tag orange">VÉRIFIÉS CHAQUE ANNÉE</span>
       </div>
       <div class="contracts" id="contractsList"></div>
@@ -150,12 +159,6 @@
     </div>
 
   </main>
-</div>
-
-<!-- Passage d'une année : en bas à droite, toujours visible (raccourci N) -->
-<div class="turn-dock" role="region" aria-label="Contrôle du temps">
-  <div><span class="eyebrow">ANNÉE <b id="dockYear">2026</b></span><small id="dockHint">Raccourci : touche N</small></div>
-  <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
 </div>
 
 <!-- Notifications temporaires (empilées) -->
@@ -214,17 +217,31 @@
     <details><summary>Énergie</summary>
       <p>Les centrales produisent de l’énergie, les autres bâtiments en consomment. Si la colonie manque d’énergie, toute sa production baisse (jusqu’à 35 %). Chaque centrale ajoute aussi un petit bonus de production.</p></details>
     <details><summary>Gros projets</summary>
-      <p>Chaque astre a son Gros projet (indiqué sur sa carte) : cher, 5 ans de chantier, il faut que l’énergie de la colonie soit couverte pour qu’il avance. Il ne demande pas de travailleurs.</p></details>
+      <p>Chaque astre a un Gros projet unique (indiqué sur sa carte) : cher, 5 ans de chantier (l’énergie de la colonie doit être couverte), mais son effet s’applique à <b>toutes vos colonies</b> (trajets, coûts, mines, énergie…). C’est lui qui oriente votre stratégie.</p></details>
+    <details><summary>Événements</summary>
+      <p>Tous les 2 à 7 ans, un événement survient : centrale qui explose, épidémie, filon épuisé, crise financière… ou percée scientifique, mécène, gisement exceptionnel. Souvent, vous pouvez payer pour limiter les dégâts. Les effets temporaires en cours sont listés dans le rapport de l’année.</p></details>
+    <details><summary>Stratégie de recherche</summary>
+      <p>Chaque astre demande la propulsion et une seule autre branche (Mars : Vie, Cérès : Matériaux, Titan : Énergie, Europe : Information…). Choisissez les mondes que vous visez, puis les branches qui y mènent.</p></details>
     <details><summary>Recherche et ères</summary>
       <p>Les points de recherche (PR) s’accumulent chaque année. Dépensez-les dans l’arbre : 6 branches, 6 ères. Les technologies donnent des bonus et débloquent bâtiments et astres.</p></details>
     <details><summary>Objectifs ONU et confiance</summary>
-      <p>Les objectifs rapportent confiance, budget ou PR ; échouer coûte de la confiance. La confiance s’érode un peu plus chaque année. <b>À 0 %, le mandat est révoqué.</b> À la fin du mandat, un bilan chiffre votre réussite.</p></details>
+      <p>Tous les 5 ans, l’ONU propose 3 objectifs (facile, ambitieux, audacieux) et vous en choisissez un : plus il est dur, plus il rapporte et plus l’échec coûte. <b>La confiance fixe la subvention annuelle de l’ONU</b> (rien sous 20 %) et s’érode un peu plus chaque année. <b>À 0 %, le mandat est révoqué.</b></p></details>
     <p class="muted" style="margin-top:12px">Touche <b>N</b> : avancer d’un an. La partie se sauvegarde dans le navigateur (bouton Sauvegarder).</p>
     <div class="setup-actions">
       <button class="btn" onclick="closeTutorial(); startGuide(true)">Relancer le guide pas à pas</button>
       <button class="btn primary" onclick="closeTutorial()">Fermer</button>
     </div>
   </div>
+</div>
+
+<!-- ============================ DRAFT DES OBJECTIFS ONU ============================ -->
+<div class="modal" id="draft">
+  <div class="card draftbox" id="draftBody"></div>
+</div>
+
+<!-- ============================ ÉVÉNEMENT ALÉATOIRE ============================ -->
+<div class="modal" id="eventModal">
+  <div class="card eventbox" id="eventBody"></div>
 </div>
 
 <!-- ============================ BILAN DE FIN DE MANDAT ============================ -->
@@ -241,6 +258,7 @@
 <script src="js/state.js"></script>        <!-- état de la partie, effets des technos -->
 <script src="js/mechanics.js"></script>    <!-- formules de calcul -->
 <script src="js/actions.js"></script>      <!-- actions du joueur, passage d'année, sauvegarde -->
+<script src="js/events.js"></script>       <!-- événements aléatoires -->
 <script src="js/ui.js"></script>           <!-- affichage -->
 <script src="js/guide.js"></script>        <!-- guide pas à pas (pop-ups) -->
 <script src="js/main.js"></script>         <!-- démarrage -->

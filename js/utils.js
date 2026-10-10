@@ -40,7 +40,9 @@ const FX_LABELS = {
   conf:   v => `+${R(v, 2)} confiance/an`,
   far:    v => `+${R(v * 100, 0)} pts de bonus de distance`,
   crew:   v => `−${pc(v)} équipage requis`,
-  reward: v => `+${pc(v)} récompenses de contrats`,
+  reward: v => `+${pc(v)} récompenses d’objectifs`,
+  energy: v => `${v < 0 ? '−' : '+'}${pc(Math.abs(v))} énergie produite par les centrales`,
+  grant:  v => `${v < 0 ? '−' : '+'}${pc(Math.abs(v))} subvention ONU`,
 };
 
 function fxText(effects) {

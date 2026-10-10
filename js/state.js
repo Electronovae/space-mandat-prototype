@@ -19,10 +19,7 @@ const techResearchCost = t => Math.round(
   * Math.pow(BALANCE.research.eraCostGrowth, t.era - 1) * 2
 ) / 2;
 TECH.forEach(t => {
-  const source = OV[t.id] || (() => {
-    const [lever, base] = CYC[t.branch][(techRank(t) - 1) % 4];
-    return { [lever]: base };
-  })();
+  const source = OV[t.id] || CYC[t.branch][(techRank(t) - 1) % 4];
   // Les surcharges précises bénéficient elles aussi de la montée en puissance par ère.
   const eraMult = 1 + BALANCE.techScaling.eraStep * (t.era - 1);
   const effect = Object.fromEntries(Object.entries(source).map(([lever, base]) => [
@@ -56,35 +53,74 @@ function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizo
     sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null, project: null })),
     tech: [],
     contracts: [],
+    effects: [],        // effets temporaires des événements : { lever, value, until, label }
+    event: null,        // événement en attente de décision
+    nextEvent: S.year + BALANCE.events.firstMin
+             + Math.floor(Math.random() * (BALANCE.events.firstMax - BALANCE.events.firstMin + 1)),
   };
 }
 
 /* ---------------------------------------------------------------------
-   Tirage d'un contrat au hasard dans CONTRACT_POOL (le contrat est ajouté à st.contracts)
-   Sont écartés : les contrats déjà proposés, ceux pas encore « débloqués » (def.after),
+   Objectifs ONU (CONTRACT_POOL, config.js)
+   eligibleContracts : écarte ceux déjà proposés, pas encore « débloqués » (def.after),
    ceux dont l'échéance dépasse la fin du mandat, ceux déjà remplis (sauf « hold »,
    qui doit au contraire être vrai au moment du tirage).
-   Retourne l'entrée créée, ou null s'il ne reste rien d'éligible.
    --------------------------------------------------------------------- */
-function drawContract(st) {
+function eligibleContracts(st) {
   const elapsed = st.year - st.startYear;
-  const pool = CONTRACT_POOL.filter(d =>
-    !st.contracts.some(c => c.id === d.id) &&
+  const offered = new Set([...st.contracts.map(c => c.id), ...(st.offer || []).map(o => o.id)]);
+  return CONTRACT_POOL.filter(d =>
+    !offered.has(d.id) &&
     elapsed >= (d.after || 0) &&
     st.year + d.years <= st.endYear &&
     (d.hold ? d.check(st) : !d.check(st)));
-  if (!pool.length) return null;
-  const def = pool[Math.floor(Math.random() * pool.length)];
-  // Type de récompense tiré au hasard (pondéré), montant fixé dès maintenant
-  const K = BALANCE.contracts;
+}
+
+/* Prépare une proposition { id, tier, kind, amount, penalty } : type de récompense tiré au hasard
+   (pondéré), montant et pénalité fixés dès maintenant et multipliés par le palier. */
+function makeProposal(st, def, tier = 'medium') {
+  const K = BALANCE.contracts, T = K.tiers[tier], elapsed = st.year - st.startYear;
   let roll = Math.random() * Object.values(K.rewardWeights).reduce((a, b) => a + b, 0), kind = 'conf';
   for (const [k, w] of Object.entries(K.rewardWeights)) { if ((roll -= w) < 0) { kind = k; break; } }
-  const amount = kind === 'conf'
-    ? Math.max(3, Math.round(def.reward * K.rewardValue.conf))
-    : Math.round(def.reward * K.rewardValue[kind] * (1 + elapsed * K.rewardGrowth) / (kind === 'budget' ? 5 : 1)) * (kind === 'budget' ? 5 : 1);
-  const entry = { id: def.id, from: st.year, deadline: st.year + def.years, done: false, failed: false, kind, amount };
+  const base = kind === 'conf'
+    ? Math.max(3, def.reward * K.rewardValue.conf)
+    : def.reward * K.rewardValue[kind] * (1 + elapsed * K.rewardGrowth);
+  const amount = kind === 'budget' ? Math.round(base * T.reward / 5) * 5 : Math.round(base * T.reward);
+  // Cible et délai propres au palier (les cibles d'argent et de population sont arrondies)
+  const target = def.target && def.scale !== false ? (def.target >= 50 ? Math.round(def.target * T.target / 10) * 10 : Math.round(def.target * T.target)) : null;
+  const years = Math.max(5, Math.round(def.years * T.time));
+  return { id: def.id, tier, kind, amount, target, years, penalty: Math.min(-1, Math.round(def.penalty * T.penalty)) };
+}
+
+/* Transforme une proposition en objectif actif */
+function addContract(st, p) {
+  const def = CONTRACT_BY_ID[p.id];
+  const entry = { ...p, from: st.year, deadline: st.year + (p.years || def.years), done: false, failed: false };
   st.contracts.push(entry);
   return entry;
+}
+
+/* Tirage direct d'un objectif au hasard (objectifs imposés du début de partie) */
+function drawContract(st) {
+  const pool = eligibleContracts(st);
+  if (!pool.length) return null;
+  return addContract(st, makeProposal(st, pool[Math.floor(Math.random() * pool.length)], 'medium'));
+}
+
+/* Draft : 3 objectifs de difficulté croissante (récompense de base faible → forte).
+   On pioche un objectif dans chaque tiers du pool trié ; le palier multiplie récompense et pénalité. */
+function makeOffer(st) {
+  const pool = eligibleContracts(st).sort((a, b) => a.reward - b.reward);
+  if (!pool.length) return null;
+  const n = Math.min(BALANCE.contracts.draftSize, pool.length), tiers = ['easy', 'medium', 'hard'].slice(3 - n);
+  const picks = [];
+  for (let k = 0; k < n; k++) {
+    const lo = Math.floor(k * pool.length / n), hi = Math.floor((k + 1) * pool.length / n);
+    const slice = pool.slice(lo, Math.max(hi, lo + 1)).filter(d => !picks.some(p => p.id === d.id));
+    if (slice.length) picks.push(makeProposal(st, slice[Math.floor(Math.random() * slice.length)], tiers[k]));
+  }
+  st.offer = picks;
+  return picks;
 }
 
 let state = fresh();
