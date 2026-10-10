@@ -1,5 +1,18 @@
 # Journal des modifications
 
+## v1.2 : rendre le prototype convaincant
+
+Constats (bot + partie test) : effectif toujours à 120 %, chaque planète exigeait 4 à 6 branches, objectifs ONU validés « en passant » et sans enjeu, Gros projets anecdotiques, premier écran sans décision.
+
+- **Tunnel du tour** : le Centre de commandement suit ① Rapport de l'année, ② À décider (liste cliquable : énergie, travailleurs, population bloquée, emplacements libres, Gros projet disponible, technos abordables, missions possibles, objectifs bientôt échus), ③ Avancer.
+- **Draft ONU** : tous les 5 ans, 3 objectifs Facile / Ambitieux / Audacieux ; le palier relève la cible, raccourcit le délai, et multiplie récompense et pénalité. Refuser coûte 3 de confiance. Le premier draft s'ouvre au lancement.
+- **Subvention ONU** : chaque année, 0,3 M par point de confiance au-dessus de 20 %, croissant avec le temps. La confiance devient de l'argent.
+- **Travailleurs** : 20 par mine/labo, 10 par centrale, plus de bonus de sureffectif.
+- **Gros projets** : un seul par astre, effet global fort (L1 −35 % trajets, Lune +100 % énergie, Phobos −30 % bâtiments, Cérès −35 % missions, Vesta +50 % mines, Europe +40 % labos…), coût ×3.
+- **Recherche orientée** : chaque astre demande la propulsion + une seule branche (Mars : Vie, Cérès/Phobos : Matériaux, Vesta/Titan : Énergie, Europe : Information, Triton : Sociétés).
+- **Gigantisme** : +5 % d'entretien par bâtiment présent dans la colonie (freine l'emballement de fin de partie). Plafonds labos/mines à +150 %.
+- **Lisibilité** : bâtiments construits en tuiles (emplacements libres visibles), menu de construction repliable, Opérations triées (colonies, en route, accessibles, verrouillées repliées), carte cliquable.
+
 ## v1.1 : retours de test
 
 Bugs

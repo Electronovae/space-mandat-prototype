@@ -1,5 +1,15 @@
 # Équilibrage : prototype SpaceMandat
 
+## v1.2 : mesures (bot glouton qui choisit l'objectif « Ambitieux »)
+
+| Budget de départ | Colonies en 2045 | Colonies en 2065 | Revenu net final |
+|---|---|---|---|
+| 200 M | 3 | 6 | +1 200 M/an |
+| 500 M | 4 | 7 | +3 100 M/an |
+| 1 200 M | 5 | 9 | +5 600 M/an |
+
+Le bot réussit encore 80 à 90 % des objectifs, même « Audacieux » : il joue sans erreur, un humain fera moins bien, mais c'est le premier réglage à revoir en test (`BALANCE.contracts.tiers`). La fin de partie manque encore de dépenses utiles quand le budget dépasse quelques milliers de M.
+
 ## v1.1 : diagnostic « difficulté étrange »
 
 Mesuré avec `node scripts/bot.js` (bot glouton, vrai moteur, 80 ans) :

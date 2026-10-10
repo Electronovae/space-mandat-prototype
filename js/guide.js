@@ -48,11 +48,11 @@ const GUIDE_STEPS = [
     done: () => state.tech.length > 0 },
   { target: () => document.querySelector('.nav button[data-view="contracts"]'),
     title: 'Objectifs ONU',
-    text: 'L’ONU vous fixe des objectifs avec une échéance. Réussis, ils rapportent confiance, budget ou PR ; ratés, ils coûtent de la confiance. Un nouveau arrive tous les 7 ans (un badge vous prévient).',
+    text: 'Vos engagements envers l’ONU, avec échéance. Tous les 5 ans, l’ONU en propose 3 et vous en choisissez un. Attention : la <b>confiance fixe la subvention annuelle</b> de l’ONU, rater un objectif coûte donc de l’argent chaque année.',
     done: () => viewActive('contracts') },
   { target: () => document.querySelector('.hud .metric:nth-child(3)'),
     title: 'À vous de jouer',
-    text: 'Dernier conseil : surveillez l’<b>énergie</b> de chaque colonie (sans centrale, la production chute) et la confiance, qui s’érode un peu plus chaque année. Les règles complètes sont dans <b>? Aide</b>.' },
+    text: 'Chaque année : lisez le <b>rapport</b>, traitez la liste <b>À décider</b> du Centre de commandement, puis avancez. Visez des astres : chacun demande la propulsion et <b>une</b> autre branche, et son Gros projet profite à toutes vos colonies. Règles complètes dans <b>? Aide</b>.' },
 ];
 
 let guideStep = -1;          // -1 = guide inactif

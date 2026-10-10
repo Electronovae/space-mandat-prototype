@@ -21,8 +21,8 @@ function makeGame(seed) {
   vm.createContext(ctx);
   for (const f of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js'])
     vm.runInContext(fs.readFileSync(`${root}/${f}`, 'utf8'), ctx, { filename: f });
-  vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
-    globalThis.__g = { get state(){ return state; }, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
+  vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; globalThis.showDraft = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
+    globalThis.__g = { get state(){ return state; }, acceptOffer, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
       missionCost, bCost, missingReqs, ready, has, TECH, SITES, ARCH, CONTRACT_BY_ID };`, ctx);
   return ctx.__g;
 }
@@ -50,14 +50,20 @@ function play(budget, horizon, seed, log = false) {
       for (let k = 0; k < 4; k++) {
         const c = g.siteCalc(i);
         if (c.used >= c.slots) break;
-        const pick = c.energyRatio < 1 && g.has('E01') ? 'power'
-          : c.pop >= c.cap - 3 ? (k % 2 ? 'farm' : 'hab')
+        const pick = c.energyRatio < 1 && g.has('E01') && (s.b.mine || s.b.lab) ? 'power'
+          : (c.pop >= c.cap - 3 || c.staff < 0.9) ? (c.limit === 'food' ? 'farm' : 'hab')
           : (s.b.mine || 0) <= (s.b.lab || 0) ? 'mine' : 'lab';
         const a = g.ARCH.find(z => z.k === pick);
         if (a.tech && !g.has(a.tech)) { const alt = g.ARCH.find(z => z.k === 'hab'); if (st().budget < g.bCost(i, alt) + 40) break; g.build(i, 'hab'); continue; }
         if (st().budget < g.bCost(i, a) + 40) break;
         g.build(i, pick);
       }
+    });
+    // Gros projets : dès que la techno et le budget le permettent
+    st().sites.forEach((s, i) => {
+      if (!s.colonized || s.b.spec || s.project || !g.has(g.SITES[i].st)) return;
+      const c = g.siteCalc(i), a = g.ARCH[5];
+      if (c.used < c.slots && st().budget > g.bCost(i, a) + 80) g.build(i, 'spec');
     });
     // Missions : la moins chère accessible si la réserve le permet
     const cand = g.SITES.map((S, i) => i).filter(i => !st().sites[i].colonized && !st().sites[i].mission && !g.missingReqs(i).length)
@@ -66,6 +72,7 @@ function play(budget, horizon, seed, log = false) {
     const T = g.totals();
     rows.push({ an: st().year, budget: Math.round(st().budget), net: +(T.bud - T.upk).toFixed(1), rp: +T.res.toFixed(1),
       pop: Math.round(T.pop), conf: +st().confidence.toFixed(1), col: st().sites.filter(s => s.colonized).length, tech: st().tech.length });
+    if (st().offer) g.acceptOffer(Math.min(+(process.env.TIER ?? 1), st().offer.length - 1));   // palier choisi (TIER=0,1,2 ; défaut : ambitieux)
     g.nextYear();
   }
   const cs = st().contracts;

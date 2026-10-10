@@ -14,8 +14,8 @@ vm.createContext(context);
 for (const file of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js']) {
   vm.runInContext(fs.readFileSync(`${root}/${file}`, 'utf8'), context, { filename: file });
 }
-vm.runInContext(`var treeSel = null; globalThis.renderBilan = () => {}; globalThis.showEndReport = () => {};
-  globalThis.__api = { getState: () => state, build, demolish, siteCalc, nextYear, newGame, setRender: fn => { render = fn; }, setToast: fn => { toast = fn; } };`, context);
+vm.runInContext(`var treeSel = null; globalThis.renderBilan = () => {}; globalThis.showEndReport = () => {}; globalThis.showDraft = () => {};
+  globalThis.__api = { getState: () => state, build, demolish, siteCalc, nextYear, newGame, acceptOffer, setRender: fn => { render = fn; }, setToast: fn => { toast = fn; } };`, context);
 const api = context.__api;
 api.setRender(() => {});
 api.setToast(() => {});
@@ -40,6 +40,7 @@ const c1 = api.siteCalc(1);
 if (c1.limit !== 'places' || c1.food <= c1.places) throw new Error('limite places/rations incorrecte');
 // Fin de mandat et révocation
 api.newGame(500, 40);
-for (let k = 0; k < 40 && !api.getState().over; k++) api.nextYear();
+if (!api.getState().offer || api.getState().offer.length !== 3) throw new Error('draft initial absent');
+for (let k = 0; k < 40 && !api.getState().over; k++) { if (api.getState().offer) api.acceptOffer(0); api.nextYear(); }
 if (!api.getState().over) throw new Error('la partie ne se termine pas');
 console.log('OK: bâtiments construits/détruits, serre sans techno, limite rations, fin de mandat (' + api.getState().over + ' en ' + api.getState().year + ').');

@@ -13,9 +13,28 @@ function newGame(budget, horizon) {
     const c = drawContract(state);
     if (c) c.isNew = true;                 // badge « nouveau » dans l'onglet Objectifs
   }
+  makeOffer(state);                        // premier draft : le joueur choisit un 3e objectif
   treeSel = null;
   render();
-  toast('Mandat ' + state.startYear + ' → ' + state.endYear + ' · ' + state.contracts.length + ' objectifs ONU fixés.');
+  toast('Mandat ' + state.startYear + ' → ' + state.endYear + ' · ' + state.contracts.length + ' objectifs ONU imposés, un à choisir.');
+}
+
+/* Draft ONU : accepter la proposition k, ou refuser toute l'offre */
+function acceptOffer(k) {
+  const p = state.offer && state.offer[k];
+  if (!p) return;
+  const c = addContract(state, p);
+  c.isNew = true;
+  state.offer = null;
+  toast('Objectif accepté : ' + contractName(c), 'info');
+  render();
+}
+function refuseOffer() {
+  if (!state.offer) return;
+  state.offer = null;
+  state.confidence = Math.max(0, state.confidence - BALANCE.contracts.refusePenalty);
+  toast('Offre de l’ONU refusée · −' + BALANCE.contracts.refusePenalty + ' confiance', 'bad');
+  render();
 }
 
 /* Journal de l'année : chaque événement est notifié (toasts empilés) ET listé dans le bilan,
@@ -107,6 +126,7 @@ function researchTech(id) {
    --------------------------------------------------------------------- */
 function nextYear() {
   if (state.over) { showEndReport(); return; }
+  if (state.offer && state.offer.length) { showDraft(); return; }   // le draft ONU doit être tranché
 
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
@@ -162,7 +182,7 @@ function nextYear() {
   state.contracts.forEach(c => {
     if (c.done || c.failed) return;
     const def = CONTRACT_BY_ID[c.id];
-    const ok = def.check(state);
+    const ok = contractOk(c);
     let result = null;
     if (def.hold) {                                  // à maintenir jusqu'à l'échéance
       if (!ok) result = 'fail';
@@ -176,21 +196,20 @@ function nextYear() {
       if (pay.kind === 'budget') state.budget += pay.amount;
       else if (pay.kind === 'rp') state.rp += pay.amount;
       else state.confidence = Math.min(100, state.confidence + pay.amount);
-      logEvent('Objectif réussi : ' + def.name + ' · ' + payoutText(pay), 'good');
+      logEvent('Objectif réussi : ' + contractName(c) + ' · ' + payoutText(pay), 'good');
     } else if (result === 'fail') {
       c.failed = true;
-      state.confidence = Math.max(0, state.confidence + def.penalty);
-      logEvent('Objectif échoué : ' + def.name + ' · ' + def.penalty + ' confiance', 'bad');
+      const pen = c.penalty ?? def.penalty;
+      state.confidence = Math.max(0, state.confidence + pen);
+      logEvent('Objectif échoué : ' + contractName(c) + ' · ' + pen + ' confiance', 'bad');
     }
   });
 
-  // Nouveau contrat tiré au hasard tous les N ans (tant qu'il n'y en a pas trop d'actifs)
+  // Tous les N ans : l'ONU propose un draft de 3 objectifs (tant qu'il n'y en a pas trop d'actifs)
   const K = BALANCE.contracts;
   const active = state.contracts.filter(c => !c.done && !c.failed).length;
-  if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive) {
-    const c = drawContract(state);
-    if (c) { c.isNew = true; logEvent('Nouvel objectif ONU : ' + CONTRACT_BY_ID[c.id].name, 'info'); }
-  }
+  if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive && makeOffer(state))
+    logEvent('L’ONU propose de nouveaux objectifs : choisissez-en un', 'info');
 
   // Alerte confiance, révocation, fin de mandat
   const C = BALANCE.confidence;
@@ -203,6 +222,7 @@ function nextYear() {
   renderBilan({ T, pop0, pop1: totals().pop, conf0, events: yearEvents });
   render();
   if (state.over) showEndReport();
+  else if (state.offer) showDraft();
 }
 
 /* Score de fin de mandat (affiché dans le bilan final). Détail renvoyé pour l'affichage. */
