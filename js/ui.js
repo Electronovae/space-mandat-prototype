@@ -126,9 +126,25 @@ function renderBilan({ T, pop0, pop1, conf0, events = [] }) {
     <div><span>Recherche</span><b class="positive">+${R(T.res, 1)} PR</b></div>
     <div><span>Population</span><b>${Math.round(pop1)} (${pop1 >= pop0 ? '+' : ''}${Math.round(pop1 - pop0)})</b></div>
     <div><span>Confiance</span><b class="${dConf >= 0 ? 'positive' : 'negative'}">${dConf >= 0 ? '+' : ''}${R(dConf, 1)}</b></div>`;
+  renderEventLog(events);
+}
+
+/* Journal de l'année (réaffiché quand une décision d'événement s'y ajoute) */
+function renderEventLog(events = yearEvents) {
   $('events').innerHTML = `<h4>Événements ${state.year - 1} → ${state.year}</h4>` + (events.length
     ? '<ul>' + events.map(e => `<li class="${e.kind}">${e.text}</li>`).join('') + '</ul>'
     : '<p class="muted">Rien de notable cette année.</p>');
+  renderEffects();
+}
+
+/* Effets temporaires en cours (événements), sous le journal de l'année */
+function renderEffects() {
+  const fx = activeEffects();
+  let el = $('effects');
+  if (!el) { el = document.createElement('div'); el.id = 'effects'; el.className = 'events'; $('events').after(el); }
+  el.innerHTML = fx.length
+    ? '<h4>Effets en cours</h4><ul>' + fx.map(e => `<li class="${e.value < 0 && e.lever !== 'launch' ? 'bad' : 'good'}">${e.label} · jusqu’en ${e.until}</li>`).join('') + '</ul>'
+    : '';
 }
 
 /* =====================================================================
@@ -451,6 +467,30 @@ function showDraft() {
   $('draft').style.display = 'flex';
 }
 
+/* =====================================================================
+   ÉVÉNEMENT ALÉATOIRE : récit + choix (une option payante, une gratuite)
+   ===================================================================== */
+function showEvent() {
+  const ev = state.event;
+  if (!ev) { closeEvent(); return; }
+  const def = EVENT_BY_ID[ev.id], opts = def.options(state, ev.site);
+  $('eventBody').innerHTML = `
+    <div class="eyebrow ${def.kind}">${def.kind === 'good' ? 'BONNE NOUVELLE' : 'ALERTE'} · ${state.year}${ev.site !== null ? ' · ' + SITES[ev.site].n.toUpperCase() : ''}</div>
+    <h2 style="margin:8px 0 8px">${def.name}</h2>
+    <p class="muted">${def.text(state, ev.site)}</p>
+    <div class="event-opts">${opts.map((o, k) => {
+      const short = o.cost && state.budget < o.cost;
+      return `<button class="btn ${k === 0 ? 'primary' : ''} event-opt" ${short ? 'disabled' : ''} onclick="if (resolveEvent(${k})) closeEvent()">
+        <b>${o.label}${o.cost ? ' · ' + money(o.cost) : ''}</b><small>${short ? 'budget insuffisant' : o.detail}</small></button>`;
+    }).join('')}</div>`;
+  $('eventModal').style.display = 'flex';
+}
+
+function closeEvent() {
+  $('eventModal').style.display = 'none';
+  if (state.offer && state.offer.length) showDraft();      // puis le draft ONU s'il y en a un
+}
+
 function closeDraft() {
   $('draft').style.display = 'none';
   if (guideAfterDraft) { guideAfterDraft = false; setTimeout(() => startGuide(false), 200); }
@@ -464,6 +504,8 @@ function renderTodo() {
   const items = [], M = getModifiers();
   const add = (kind, text, action, label) => items.push({ kind, text, action, label });
 
+  if (state.event)
+    add('urgent', `Événement : ${EVENT_BY_ID[state.event.id].name}, une décision est attendue.`, 'showEvent()', 'Décider');
   if (state.offer && state.offer.length)
     add('urgent', 'L’ONU attend votre choix parmi 3 objectifs.', 'showDraft()', 'Choisir');
   if (state.confidence < BALANCE.confidence.warn)

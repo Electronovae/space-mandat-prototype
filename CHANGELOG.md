@@ -11,6 +11,7 @@ Constats (bot + partie test) : effectif toujours à 120 %, chaque planète exige
 - **Gros projets** : un seul par astre, effet global fort (L1 −35 % trajets, Lune +100 % énergie, Phobos −30 % bâtiments, Cérès −35 % missions, Vesta +50 % mines, Europe +40 % labos…), coût ×3.
 - **Recherche orientée** : chaque astre demande la propulsion + une seule branche (Mars : Vie, Cérès/Phobos : Matériaux, Vesta/Titan : Énergie, Europe : Information, Triton : Sociétés).
 - **Gigantisme** : +5 % d'entretien par bâtiment présent dans la colonie (freine l'emballement de fin de partie). Plafonds labos/mines à +150 %.
+- **Événements aléatoires** (`js/events.js`) : un tous les 2 à 7 ans, 14 au total. Mauvais : explosion de centrale, épidémie, filon épuisé, scandale budgétaire, tempête solaire, crise financière, avarie en vol. Bons : percée scientifique (techno offerte), agronomie spatiale, gisement exceptionnel, mécène, vague d'enthousiasme, baby-boom, coopération internationale. La plupart proposent un choix (payer pour limiter les dégâts, ou encaisser) ; les effets temporaires sont listés dans le rapport.
 - **Lisibilité** : bâtiments construits en tuiles (emplacements libres visibles), menu de construction repliable, Opérations triées (colonies, en route, accessibles, verrouillées repliées), carte cliquable.
 
 ## v1.1 : retours de test

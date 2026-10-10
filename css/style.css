@@ -1288,3 +1288,12 @@ b.glob { color: var(--lime); font-weight: 500; }
 @media(max-width:900px) {
   .turn-grid, .draft-cards { grid-template-columns: 1fr; }
 }
+
+/* ===== Événements aléatoires ===== */
+.modal .card.eventbox { max-width: 520px; }
+.eventbox .eyebrow.bad { color: var(--danger); }
+.eventbox .eyebrow.good { color: var(--lime); }
+.event-opts { display: grid; gap: 8px; margin-top: 16px; }
+.event-opt { text-align: left; display: flex; flex-direction: column; gap: 3px; }
+.event-opt small { font-size: 10px; opacity: .8; }
+.event-opt:disabled { opacity: .45; cursor: not-allowed; transform: none; }

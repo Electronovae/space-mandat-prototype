@@ -19,10 +19,10 @@ function makeGame(seed) {
   };
   ctx.global = ctx;
   vm.createContext(ctx);
-  for (const f of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js'])
+  for (const f of ['js/data/techs.js','js/config.js','js/utils.js','js/state.js','js/mechanics.js','js/actions.js','js/events.js'])
     vm.runInContext(fs.readFileSync(`${root}/${f}`, 'utf8'), ctx, { filename: f });
-  vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; globalThis.showDraft = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
-    globalThis.__g = { get state(){ return state; }, acceptOffer, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
+  vm.runInContext(`var treeSel = null; render = () => {}; globalThis.showEndReport = () => {}; globalThis.showDraft = () => {}; globalThis.showEvent = () => {}; toast = () => {}; if (typeof renderBilan === 'undefined') globalThis.renderBilan = () => {};
+    globalThis.__g = { get state(){ return state; }, acceptOffer, resolveEvent, getModifiers, siteFactor, newGame, launch, build, researchTech, nextYear, siteCalc, totals,
       missionCost, bCost, missingReqs, ready, has, TECH, SITES, ARCH, CONTRACT_BY_ID };`, ctx);
   return ctx.__g;
 }
@@ -72,6 +72,7 @@ function play(budget, horizon, seed, log = false) {
     const T = g.totals();
     rows.push({ an: st().year, budget: Math.round(st().budget), net: +(T.bud - T.upk).toFixed(1), rp: +T.res.toFixed(1),
       pop: Math.round(T.pop), conf: +st().confidence.toFixed(1), col: st().sites.filter(s => s.colonized).length, tech: st().tech.length });
+    if (st().event) { if (!g.resolveEvent(0)) g.resolveEvent(1); }   // le bot paie s'il peut
     if (st().offer) g.acceptOffer(Math.min(+(process.env.TIER ?? 1), st().offer.length - 1));   // palier choisi (TIER=0,1,2 ; défaut : ambitieux)
     g.nextYear();
   }

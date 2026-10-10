@@ -124,6 +124,12 @@ const BALANCE = {
     deficitConfPenalty: 2, // perte de confiance si le budget passe sous 0 (le budget est remis à 0)
   },
 
+  // --- Événements aléatoires (js/events.js) -----------------------------
+  events: {
+    firstMin: 3, firstMax: 5,   // premier événement entre la 3e et la 5e année
+    minGap: 2, maxGap: 7,       // puis un tous les 2 à 7 ans
+  },
+
   // --- Subvention de l'ONU ----------------------------------------------
   // Chaque année, l'ONU finance le programme selon sa confiance : la confiance devient de l'argent.
   // subvention = perPoint × max(0, confiance − floor) × (1 + growth × années écoulées)
@@ -354,7 +360,8 @@ const OV = {
 const ZERO = {
   rate:0, lab:0, mine:0, flat:0, launch:0, travel:0, build:0,
   cap:0, grow:0, food:0, power:0, conf:0, far:0, crew:0, reward:0,
-  energy:0,   // +% énergie produite par les centrales (Gros projets uniquement)
+  energy:0,   // +% énergie produite par les centrales (Gros projets, événements)
+  grant:0,    // +% subvention ONU (événements uniquement)
 };
 
 

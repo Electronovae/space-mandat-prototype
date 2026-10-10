@@ -53,6 +53,10 @@ function fresh(budget = BALANCE.setup.budget.def, horizon = BALANCE.setup.horizo
     sites: SITES.map(() => ({ colonized: false, pop: 0, b: {}, mission: null, project: null })),
     tech: [],
     contracts: [],
+    effects: [],        // effets temporaires des événements : { lever, value, until, label }
+    event: null,        // événement en attente de décision
+    nextEvent: S.year + BALANCE.events.firstMin
+             + Math.floor(Math.random() * (BALANCE.events.firstMax - BALANCE.events.firstMin + 1)),
   };
 }
 

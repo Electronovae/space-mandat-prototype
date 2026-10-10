@@ -126,7 +126,8 @@ function researchTech(id) {
    --------------------------------------------------------------------- */
 function nextYear() {
   if (state.over) { showEndReport(); return; }
-  if (state.offer && state.offer.length) { showDraft(); return; }   // le draft ONU doit être tranché
+  if (state.event) { showEvent(); return; }                         // l'événement doit être tranché
+  if (state.offer && state.offer.length) { showDraft(); return; }   // le draft ONU aussi
 
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
@@ -211,6 +212,14 @@ function nextYear() {
   if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive && makeOffer(state))
     logEvent('L’ONU propose de nouveaux objectifs : choisissez-en un', 'info');
 
+  // Effets temporaires qui s'achèvent, puis éventuel événement aléatoire
+  (state.effects || []).filter(e => e.until === state.year).forEach(e => logEvent('Fin de l’effet : ' + e.label, 'info'));
+  state.effects = (state.effects || []).filter(e => e.until > state.year);
+  if (state.nextEvent && state.year >= state.nextEvent && state.year < state.endYear) {
+    const ev = rollEvent(state);
+    if (ev) logEvent('Événement : ' + EVENT_BY_ID[ev.id].name, EVENT_BY_ID[ev.id].kind);
+  }
+
   // Alerte confiance, révocation, fin de mandat
   const C = BALANCE.confidence;
   if (state.confidence <= C.revoke) state.over = 'revoked';
@@ -222,6 +231,7 @@ function nextYear() {
   renderBilan({ T, pop0, pop1: totals().pop, conf0, events: yearEvents });
   render();
   if (state.over) showEndReport();
+  else if (state.event) showEvent();
   else if (state.offer) showDraft();
 }
 
@@ -254,6 +264,8 @@ function load() {
   // Compatibilité avec les sauvegardes antérieures
   state.sites.forEach(s => { if (s.project === undefined) s.project = null; s.b = s.b || {}; });
   state.contracts = state.contracts || [];
+  state.effects = state.effects || [];
+  if (state.nextEvent === undefined) state.nextEvent = state.year + 3;
   render();
   toast('Sauvegarde chargée.');
   return true;

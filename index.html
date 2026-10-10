@@ -218,6 +218,8 @@
       <p>Les centrales produisent de l’énergie, les autres bâtiments en consomment. Si la colonie manque d’énergie, toute sa production baisse (jusqu’à 35 %). Chaque centrale ajoute aussi un petit bonus de production.</p></details>
     <details><summary>Gros projets</summary>
       <p>Chaque astre a un Gros projet unique (indiqué sur sa carte) : cher, 5 ans de chantier (l’énergie de la colonie doit être couverte), mais son effet s’applique à <b>toutes vos colonies</b> (trajets, coûts, mines, énergie…). C’est lui qui oriente votre stratégie.</p></details>
+    <details><summary>Événements</summary>
+      <p>Tous les 2 à 7 ans, un événement survient : centrale qui explose, épidémie, filon épuisé, crise financière… ou percée scientifique, mécène, gisement exceptionnel. Souvent, vous pouvez payer pour limiter les dégâts. Les effets temporaires en cours sont listés dans le rapport de l’année.</p></details>
     <details><summary>Stratégie de recherche</summary>
       <p>Chaque astre demande la propulsion et une seule autre branche (Mars : Vie, Cérès : Matériaux, Titan : Énergie, Europe : Information…). Choisissez les mondes que vous visez, puis les branches qui y mènent.</p></details>
     <details><summary>Recherche et ères</summary>
@@ -237,6 +239,11 @@
   <div class="card draftbox" id="draftBody"></div>
 </div>
 
+<!-- ============================ ÉVÉNEMENT ALÉATOIRE ============================ -->
+<div class="modal" id="eventModal">
+  <div class="card eventbox" id="eventBody"></div>
+</div>
+
 <!-- ============================ BILAN DE FIN DE MANDAT ============================ -->
 <div class="modal" id="endReport">
   <div class="card endreport" id="endReportBody"></div>
@@ -251,6 +258,7 @@
 <script src="js/state.js"></script>        <!-- état de la partie, effets des technos -->
 <script src="js/mechanics.js"></script>    <!-- formules de calcul -->
 <script src="js/actions.js"></script>      <!-- actions du joueur, passage d'année, sauvegarde -->
+<script src="js/events.js"></script>       <!-- événements aléatoires -->
 <script src="js/ui.js"></script>           <!-- affichage -->
 <script src="js/guide.js"></script>        <!-- guide pas à pas (pop-ups) -->
 <script src="js/main.js"></script>         <!-- démarrage -->

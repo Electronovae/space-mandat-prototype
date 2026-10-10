@@ -19,6 +19,9 @@ function getModifiers() {
     for (const lever in FX[id]) m[lever] += FX[id][lever];
   });
 
+  // Effets temporaires des événements aléatoires
+  (state.effects || []).forEach(e => { if (e.until > state.year && e.lever in m) m[e.lever] += e.value; });
+
   // Gros projets achevés : bonus globaux (toutes colonies), voir SITES[i].x.global
   state.sites.forEach((s, i) => {
     if (!s.colonized || !s.b.spec) return;
@@ -117,7 +120,8 @@ function siteCalc(i) {
 /* Subvention annuelle de l'ONU (dépend de la confiance) */
 function grantNow(st = state) {
   const G = BALANCE.grant;
-  return G.perPoint * Math.max(0, st.confidence - G.floor) * (1 + G.growth * (st.year - st.startYear));
+  const boost = (st.effects || []).filter(e => e.lever === 'grant' && e.until > st.year).reduce((t, e) => t + e.value, 0);
+  return G.perPoint * Math.max(0, st.confidence - G.floor) * (1 + G.growth * (st.year - st.startYear)) * Math.max(0, 1 + boost);
 }
 
 function totals() {
