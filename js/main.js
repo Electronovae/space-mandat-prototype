@@ -15,14 +15,23 @@ document.querySelectorAll('.nav button').forEach(btn => {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $(btn.dataset.view).classList.add('active');
     if (btn.dataset.view === 'tech') renderTree();   // le graphe se mesure une fois visible
+    if (btn.dataset.view === 'contracts') render();  // efface le badge « nouveaux objectifs »
+    else if (typeof guideTick === 'function') guideTick();
+    window.scrollTo({ top: 0 });
   };
 });
 
 /* Boutons de l'en-tête */
 $('nextYear').onclick = nextYear;
-document.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.tagName !== 'INPUT') nextYear(); });
+/* Touche N : uniquement en jeu (pas derrière une fenêtre ouverte, pas dans un champ) */
+const modalOpen = () => [...document.querySelectorAll('.modal')].some(m => m.style.display === 'flex');
+document.addEventListener('keydown', e => {
+  if (!e.key || e.key.toLowerCase() !== 'n' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || modalOpen() || !gameStarted) return;
+  nextYear();
+});
+window.addEventListener('resize', () => { if (typeof guideTick === 'function') guideTick(); });
 $('save').onclick = save;
-$('load').onclick = load;
 $('newGame').onclick = openSetup;
 $('help').onclick = () => { $('tutorial').style.display = 'flex'; };
 
@@ -37,6 +46,7 @@ $('setupCancel').onclick = () => { $('setup').style.display = 'none'; };
 $('setupLoad').onclick = () => {
   if (load()) { gameStarted = true; $('setup').style.display = 'none'; }
 };
+$('load').onclick = () => { if (load()) gameStarted = true; };
 
 /* Démarrage : on affiche d'abord la fenêtre de démarrage ; la partie
    (et ses contrats tirés au hasard) commence quand le joueur la valide. */

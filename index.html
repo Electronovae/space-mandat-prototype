@@ -25,13 +25,13 @@
     <nav class="nav">
       <button class="active" data-view="command">◈ &nbsp; Centre de commandement</button>
       <button data-view="operations">⌁ &nbsp; Opérations</button>
-      <button data-view="contracts">⊙ &nbsp; Contrats ONU</button>
+      <button data-view="contracts">⊙ &nbsp; Objectifs ONU <span class="nav-badge" id="navBadge"></span></button>
       <button data-view="tech">⌘ &nbsp; Arbre technologique</button>
     </nav>
     <div class="side-foot">
       SECTEUR SOLAIRE · A-01<br>
       Mandat actif · <span style="color:var(--lime)" id="mandateLen">80 ans</span><br><br>
-      v0.9 prototype<br>Simulation locale
+      v1.1 prototype<br>Simulation locale
     </div>
   </aside>
 
@@ -48,7 +48,7 @@
         <button class="btn" id="newGame">⟲ Nouvelle partie</button>
         <button class="btn" id="save">↓ Sauvegarder</button>
         <button class="btn" id="load">↑ Charger</button>
-        <button class="btn" id="help" title="Rouvrir le tutoriel">? Aide</button>
+        <button class="btn" id="help" title="Règles et guide pas à pas">? Aide</button>
       </div>
     </header>
 
@@ -61,14 +61,14 @@
       </div>
       <!-- Recherche : valeur principale = réserve de points, indice = production par an -->
       <div class="metric">
-        <div class="label">Points de recherche</div>
+        <div class="label">Points de recherche (PR)</div>
         <div class="val" id="research">—</div>
-        <div class="hint" id="researchHint">+0 points / an</div>
+        <div class="hint" id="researchHint">+0 PR / an</div>
       </div>
       <div class="metric">
         <div class="label">Confiance de l’ONU</div>
         <div class="val" id="confidence">—</div>
-        <div class="hint">mandat public</div>
+        <div class="hint" id="confidenceHint">0 % = mandat révoqué</div>
       </div>
       <div class="metric year">
         <div class="label">Année du mandat</div>
@@ -77,14 +77,10 @@
       </div>
     </section>
 
-    <div class="turn-dock" role="region" aria-label="Contrôle du temps">
-      <div><span class="eyebrow">CYCLE DU MANDAT</span><strong>Prêt pour l’année suivante</strong><small>Raccourci : touche N</small></div>
-      <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
-    </div>
 
     <!-- ============================ VUE : CENTRE DE COMMANDEMENT ============================ -->
     <div id="command" class="view active">
-      <div class="notice">★ <b>Briefing 2026.</b> <button class="btn" onclick="$('tutorial').style.display='flex'" style="float:right;padding:4px 8px">Aide</button> La fenêtre lunaire est ouverte. Installez une colonie depuis Opérations, puis développez des bâtiments pour créer vos revenus et votre recherche.</div>
+      <div class="notice" id="briefing">★ <b>Briefing.</b> Lancez une mission d’installation depuis <b>Opérations</b> (LAGRANGE 1 est accessible tout de suite), puis construisez logements et serres pour faire grandir la colonie.</div>
       <div class="grid">
 
         <!-- Carte du système solaire (astres générés par renderMap() dans ui.js) -->
@@ -93,10 +89,10 @@
           <div class="map-sys">
             <div class="orbit"></div><div class="orbit o2"></div><div class="sun"></div>
             <div id="mapSites"></div>
-            <div class="legend"><i></i> indice de distance (plus grand = plus éloigné) · ouvrir Opérations pour agir</div>
+            <div class="legend">sous chaque astre : durée du trajet · plus c’est loin, plus ça rapporte · agir depuis Opérations</div>
           </div>
           <div class="map-ext">
-            <div class="map-ext-title">AU-DELÀ DU SYSTÈME · fin de partie</div>
+            <div class="map-ext-title">ESPACE INTERSTELLAIRE · exoplanètes (propulsion avancée requise)</div>
             <div class="map-ext-row" id="mapExo"></div>
           </div>
         </div>
@@ -110,10 +106,10 @@
             <h3>Bilan de l’année</h3>
             <div class="bilan" id="bilan">
               <div><span>Revenus</span><b>—</b></div>
-              <div><span>Dépenses</span><b>—</b></div>
+              <div><span>Entretien</span><b>…</b></div>
               <div><span>Net</span><b>—</b></div>
             </div>
-            <p style="color:var(--muted);font-size:10px">Le bilan est calculé à chaque changement d’année.</p>
+            <div class="events" id="events"><p class="muted">Les événements de l’année apparaîtront ici.</p></div>
           </div>
         </div>
 
@@ -123,8 +119,8 @@
     <!-- ============================ VUE : OPÉRATIONS ============================ -->
     <div id="operations" class="view">
       <div class="section-head">
-        <div><h2>Opérations de colonisation</h2><p>Chaque installation engage le budget, le temps et la confiance internationale.</p></div>
-        <span class="tag">COÛTS EN MILLIONS</span>
+        <div><h2>Opérations</h2><p>Lancez des missions d’installation vers de nouveaux astres, puis construisez dans vos colonies. Les astres sont classés du plus proche au plus lointain.</p></div>
+        <span class="tag">COÛTS EN MILLIONS (M)</span>
       </div>
       <div class="ops-grid" id="ops"></div>
     </div>
@@ -132,8 +128,8 @@
     <!-- ============================ VUE : CONTRATS ============================ -->
     <div id="contracts" class="view">
       <div class="section-head">
-        <div><h2>Contrats ONU</h2><p>Des objectifs publics, tirés au hasard à chaque partie, qui structurent le mandat.</p></div>
-        <span class="tag orange">ÉVALUATION ANNUELLE</span>
+        <div><h2>Objectifs ONU</h2><p>L’ONU vous fixe des objectifs, tirés au hasard à chaque partie, puis un nouveau tous les 7 ans. Réussir rapporte confiance, budget ou PR ; échouer coûte de la confiance.</p></div>
+        <span class="tag orange">VÉRIFIÉS CHAQUE ANNÉE</span>
       </div>
       <div class="contracts" id="contractsList"></div>
     </div>
@@ -141,7 +137,7 @@
     <!-- ============================ VUE : ARBRE TECHNOLOGIQUE ============================ -->
     <div id="tech" class="view">
       <div class="section-head">
-        <div><h2>Arbre technologique</h2><p>108 technologies · 6 branches · spécialisation libre</p></div>
+        <div><h2>Arbre technologique</h2><p>108 technologies · 6 branches · 6 ères. Une carte s’éclaire quand ses prérequis sont développés ; survolez-la pour voir ses liens.</p></div>
         <span class="tag green" id="techCount">0 / 108 DÉBLOQUÉES</span>
       </div>
       <div class="techwrap">
@@ -156,22 +152,30 @@
   </main>
 </div>
 
-<!-- Le tutoriel reste rouvrable via Aide dans l’en-tête ou le briefing. -->
-<!-- Notification temporaire -->
-<div class="toast" id="toast"></div>
+<!-- Passage d'une année : en bas à droite, toujours visible (raccourci N) -->
+<div class="turn-dock" role="region" aria-label="Contrôle du temps">
+  <div><span class="eyebrow">ANNÉE <b id="dockYear">2026</b></span><small id="dockHint">Raccourci : touche N</small></div>
+  <button class="btn primary turn-btn" id="nextYear">Avancer d’un an&nbsp; →</button>
+</div>
+
+<!-- Notifications temporaires (empilées) -->
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<!-- Guide pas à pas (pop-ups contextuelles, voir guide.js) -->
+<div class="guide" id="guide" role="dialog" aria-live="polite"></div>
 
 <!-- ============================ FENÊTRE DE DÉMARRAGE ============================ -->
 <div class="modal" id="setup">
   <div class="card setup">
-    <div class="eyebrow">BRIEFING DE MANDAT · ONU</div>
+    <div class="eyebrow">NOUVELLE PARTIE · RÉGLAGES</div>
     <h2 style="margin:8px 0 10px">Paramètres du mandat</h2>
-    <p class="muted">Choisissez l’enveloppe initiale et la durée de votre mandat. Cinq contrats ONU seront tirés au hasard au départ, d’autres suivront.</p>
+    <p class="muted">Avant de commencer, choisissez le budget de départ et la durée du mandat. Cinq objectifs ONU seront tirés au hasard, d’autres suivront.</p>
 
     <div class="field">
       <label for="setupBudget">Budget initial <b id="setupBudgetVal"></b></label>
       <input type="range" id="setupBudget">
       <div class="chips" data-for="setupBudget">
-        <button data-v="200">Serré · 200</button><button data-v="420">Standard · 420</button>
+        <button data-v="200">Serré · 200</button><button data-v="500">Standard · 500</button>
         <button data-v="800">Confortable · 800</button><button data-v="1200">Généreux · 1 200</button>
       </div>
     </div>
@@ -194,24 +198,38 @@
   </div>
 </div>
 
-<!-- ============================ TUTORIEL ============================ -->
+<!-- ============================ AIDE (règles de référence) ============================
+     Le guide pas à pas (pop-ups) s'affiche à la première partie ; cette fenêtre reste
+     consultable à tout moment via « ? Aide ». -->
 <div class="modal" id="tutorial">
   <div class="card tutorial">
-    <button class="close" onclick="closeTutorial()">×</button>
-    <div class="eyebrow">PROTOCOLE D’INITIATION</div>
-    <h2 style="margin:8px 0 16px">Bienvenue dans SpaceMandat</h2>
-    <p>Vous dirigez le programme spatial civil de 2026 à 2106. Votre mandat : installer des colonies, les développer et préserver la confiance de l’ONU.</p>
-    <ul>
-      <li><b style="color:var(--ink)">Missions :</b> une mission consomme un budget de base multiplié par la distance du site et arrive après plusieurs années. Le risque baisse avec la recherche.</li>
-      <li><b style="color:var(--ink)">Bâtiments :</b> après l’installation d’une colonie, construisez logements, serres, laboratoires, mines, centrales et un Gros projet propre à l’astre. Les centrales produisent de l’énergie ; laboratoires, mines, serres, habitants et chantiers en consomment. En déficit, la production est réduite (minimum 35 %) jusqu’à construire une centrale. Un Gros projet coûte cher, dure 5 ans et doit avoir un bilan énergétique couvert. Les habitants fournissent l’effectif et ouvrent des emplacements. Les serres produisent les rations nécessaires à la capacité d’accueil.</li>
-
-      <li><b style="color:var(--ink)">Contrats :</b> à chaque partie, l’ONU tire au hasard une série d’objectifs, puis en propose de nouveaux au fil des années. Chaque contrat récompense en confiance, en trésorerie ou en points de recherche (tiré au hasard) ; un échec réduit toujours la confiance.</li>
-      <li><b style="color:var(--ink)">Hors système :</b> en fin de partie, les technologies de propulsion les plus avancées ouvrent des missions interstellaires vers cinq exoplanètes. Très chères et très longues, mais très rentables.</li>
-      <li><b style="color:var(--ink)">Bilan :</b> utilisez « Avancer d’un an » pour percevoir les revenus, payer les dépenses et faire progresser les missions.</li>
-      <li><b style="color:var(--ink)">Sauvegarde :</b> l’état est stocké dans le navigateur via localStorage.</li>
-    </ul>
-    <button class="btn primary" onclick="closeTutorial()">Compris, commandant</button>
+    <button class="close" onclick="closeTutorial()" aria-label="Fermer">×</button>
+    <div class="eyebrow">AIDE</div>
+    <h2 style="margin:8px 0 6px">Règles en bref</h2>
+    <p>Vous dirigez le programme spatial civil de l’ONU jusqu’en <b id="helpEnd">2106</b>. Installez des colonies, développez-les et gardez la confiance de l’ONU.</p>
+    <details open><summary>Missions d’installation</summary>
+      <p>Depuis <b>Opérations</b>, une mission emmène 15 colons vers un astre. Elle coûte un montant unique et met plusieurs années à arriver. Certains astres exigent des technologies (pastilles « Prérequis »).</p></details>
+    <details><summary>Colonies et bâtiments</summary>
+      <p>Chaque bâtiment occupe un <b>emplacement</b> ; la colonie en gagne un tous les 20 habitants. La population est limitée par les <b>places</b> (logements) et les <b>rations</b> (serres) : le plus faible des deux bloque. Mines et laboratoires demandent des <b>travailleurs</b> (des habitants) : en sous-effectif, ils produisent moins. Chaque bâtiment a un <b>entretien</b> annuel. Un bâtiment peut être détruit pour libérer son emplacement.</p></details>
+    <details><summary>Énergie</summary>
+      <p>Les centrales produisent de l’énergie, les autres bâtiments en consomment. Si la colonie manque d’énergie, toute sa production baisse (jusqu’à 35 %). Chaque centrale ajoute aussi un petit bonus de production.</p></details>
+    <details><summary>Gros projets</summary>
+      <p>Chaque astre a son Gros projet (indiqué sur sa carte) : cher, 5 ans de chantier, il faut que l’énergie de la colonie soit couverte pour qu’il avance. Il ne demande pas de travailleurs.</p></details>
+    <details><summary>Recherche et ères</summary>
+      <p>Les points de recherche (PR) s’accumulent chaque année. Dépensez-les dans l’arbre : 6 branches, 6 ères. Les technologies donnent des bonus et débloquent bâtiments et astres.</p></details>
+    <details><summary>Objectifs ONU et confiance</summary>
+      <p>Les objectifs rapportent confiance, budget ou PR ; échouer coûte de la confiance. La confiance s’érode un peu plus chaque année. <b>À 0 %, le mandat est révoqué.</b> À la fin du mandat, un bilan chiffre votre réussite.</p></details>
+    <p class="muted" style="margin-top:12px">Touche <b>N</b> : avancer d’un an. La partie se sauvegarde dans le navigateur (bouton Sauvegarder).</p>
+    <div class="setup-actions">
+      <button class="btn" onclick="closeTutorial(); startGuide(true)">Relancer le guide pas à pas</button>
+      <button class="btn primary" onclick="closeTutorial()">Fermer</button>
+    </div>
   </div>
+</div>
+
+<!-- ============================ BILAN DE FIN DE MANDAT ============================ -->
+<div class="modal" id="endReport">
+  <div class="card endreport" id="endReportBody"></div>
 </div>
 
 <!-- ============================ SCRIPTS ============================
@@ -224,6 +242,7 @@
 <script src="js/mechanics.js"></script>    <!-- formules de calcul -->
 <script src="js/actions.js"></script>      <!-- actions du joueur, passage d'année, sauvegarde -->
 <script src="js/ui.js"></script>           <!-- affichage -->
+<script src="js/guide.js"></script>        <!-- guide pas à pas (pop-ups) -->
 <script src="js/main.js"></script>         <!-- démarrage -->
 </body>
 </html>

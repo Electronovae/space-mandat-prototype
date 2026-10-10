@@ -9,10 +9,21 @@ const SAVE_KEY = 'spacemandat-save3';   // v3 : horizon variable + contrats tir�
    Les contrats sont tirés ici, une fois `state` en place (certains contrats lisent l'état global). */
 function newGame(budget, horizon) {
   state = fresh(budget, horizon);
-  for (let k = 0; k < BALANCE.contracts.initial; k++) drawContract(state);
+  for (let k = 0; k < BALANCE.contracts.initial; k++) {
+    const c = drawContract(state);
+    if (c) c.isNew = true;                 // badge « nouveau » dans l'onglet Objectifs
+  }
   treeSel = null;
   render();
-  toast('Mandat ' + state.startYear + '–' + state.endYear + ' · ' + state.contracts.length + ' contrats ONU tirés.');
+  toast('Mandat ' + state.startYear + ' → ' + state.endYear + ' · ' + state.contracts.length + ' objectifs ONU fixés.');
+}
+
+/* Journal de l'année : chaque événement est notifié (toasts empilés) ET listé dans le bilan,
+   pour qu'aucune information ne soit perdue quand plusieurs choses arrivent la même année. */
+let yearEvents = [];
+function logEvent(text, kind = '') {
+  yearEvents.push({ text, kind });
+  toast(text, kind);
 }
 
 /* Lancer une mission de colonisation vers le site i */
@@ -25,7 +36,7 @@ function launch(i) {
 
   state.budget -= cost;
   s.mission = { arrival: state.year + duration(i), duration: duration(i) };
-  toast('Mission lancée vers ' + S.n + ' · arrivée ' + s.mission.arrival);
+  toast('Mission d’installation lancée vers ' + S.n + ' · arrivée en ' + s.mission.arrival);
   render();
 }
 
@@ -40,13 +51,14 @@ function build(i, k) {
   if (k === 'spec' && s.project && !s.project.done) { toast('Un Gros projet est déjà en chantier.'); return; }
   if (k === 'spec' && s.b.spec >= a.max) { toast('Nombre maximal de Gros projets atteint.'); return; }
   if (techId && !has(techId)) { toast('Technologie requise : ' + tname(techId)); return; }
-  if (c.used >= c.slots)      { toast('Site plein : augmentez la population.'); return; }
+  if (c.used >= c.slots)      { toast('Plus d’emplacement libre : la colonie doit grandir (ou détruisez un bâtiment).'); return; }
   if (state.budget < cost)    { toast('Budget insuffisant pour ce bâtiment.'); return; }
 
   state.budget -= cost;
   if (a.project) {
-    s.project = { done: false, progress: 0, duration: 5, name: S.nm[ARCH.indexOf(a)] };
-    toast('Gros projet lancé sur ' + S.n + ' · chantier de 5 ans.');
+    const years = BALANCE.costs.projectYears;
+    s.project = { done: false, progress: 0, duration: years, name: S.nm[ARCH.indexOf(a)] };
+    toast('Gros projet lancé sur ' + S.n + ' · chantier de ' + years + ' ans.');
   } else {
     s.b[k] = (s.b[k] || 0) + 1;
     toast(S.nm[ARCH.indexOf(a)] + ' construit · ' + S.n);
@@ -60,9 +72,12 @@ function demolish(i, k) {
   const s = state.sites[i];
   if (!s || !s.colonized || !(s.b[k] > 0)) return;
   const a = ARCH.find(x => x.k === k);
+  const label = a ? SITES[i].nm[ARCH.indexOf(a)] : 'Bâtiment';
+  // Un Gros projet coûte très cher : on demande confirmation
+  if (k === 'spec' && typeof confirm === 'function' && !confirm('Détruire « ' + label + ' » ? Aucun remboursement.')) return;
   s.b[k]--;
   if (!s.b[k]) delete s.b[k];
-  toast((a ? SITES[i].nm[ARCH.indexOf(a)] : 'Bâtiment') + ' détruit · emplacement libéré.');
+  toast(label + ' détruit · emplacement libéré.');
   render();
 }
 
@@ -71,7 +86,7 @@ function researchTech(id) {
   const t = TECH.find(x => x.id === id);
   if (!t || has(id)) return;
   if (!ready(t))        { toast('Prérequis manquants.'); return; }
-  if (state.rp < t.rp)  { toast('Points de recherche insuffisants.'); return; }
+  if (state.rp < t.rp)  { toast('Points de recherche (PR) insuffisants.'); return; }
 
   state.rp -= t.rp;
   state.tech.push(id);
@@ -91,17 +106,18 @@ function researchTech(id) {
      7. bilan affiché
    --------------------------------------------------------------------- */
 function nextYear() {
-  if (state.year >= state.endYear) { toast('Fin du mandat atteinte.'); return; }
+  if (state.over) { showEndReport(); return; }
 
   const T = totals(), M = getModifiers();
   const pop0 = T.pop, conf0 = state.confidence;
+  yearEvents = [];
 
   // 1. Budget
   state.budget += T.bud - T.upk;
   if (state.budget < 0) {
     state.budget = 0;
     state.confidence -= BALANCE.economy.deficitConfPenalty;
-    toast('Déficit : la confiance de l’ONU baisse.');
+    logEvent('Déficit : la confiance de l’ONU baisse.', 'bad');
   }
 
   // 2. Recherche
@@ -117,7 +133,7 @@ function nextYear() {
       s.project.done = true;
       s.b.spec = (s.b.spec || 0) + 1;
       s.project = null;
-      toast('Gros projet achevé : ' + SITES[i].n);
+      logEvent('Gros projet achevé : ' + SITES[i].nm[5] + ' (' + SITES[i].n + ')', 'good');
     }
   });
 
@@ -138,7 +154,7 @@ function nextYear() {
       s.colonized = true;
       s.pop = BALANCE.colony.arrivalPop;
       state.confidence = Math.min(100, state.confidence + BALANCE.colony.arrivalConf);
-      toast('Colonie établie : ' + SITES[i].n);
+      logEvent('Colonie établie : ' + SITES[i].n + ' · vous pouvez y construire', 'good');
     }
   });
 
@@ -160,11 +176,11 @@ function nextYear() {
       if (pay.kind === 'budget') state.budget += pay.amount;
       else if (pay.kind === 'rp') state.rp += pay.amount;
       else state.confidence = Math.min(100, state.confidence + pay.amount);
-      toast('Contrat réussi : ' + def.name + ' · ' + payoutText(pay));
+      logEvent('Objectif réussi : ' + def.name + ' · ' + payoutText(pay), 'good');
     } else if (result === 'fail') {
       c.failed = true;
       state.confidence = Math.max(0, state.confidence + def.penalty);
-      toast('Contrat échoué : ' + def.name);
+      logEvent('Objectif échoué : ' + def.name + ' · ' + def.penalty + ' confiance', 'bad');
     }
   });
 
@@ -173,12 +189,34 @@ function nextYear() {
   const active = state.contracts.filter(c => !c.done && !c.failed).length;
   if ((state.year - state.startYear) % K.offerEvery === 0 && active < K.maxActive) {
     const c = drawContract(state);
-    if (c) toast('Nouveau contrat ONU : ' + CONTRACT_BY_ID[c.id].name);
+    if (c) { c.isNew = true; logEvent('Nouvel objectif ONU : ' + CONTRACT_BY_ID[c.id].name, 'info'); }
   }
 
-  // 7. Bilan du tour
-  renderBilan({ T, pop0, pop1: totals().pop, conf0 });
+  // Alerte confiance, révocation, fin de mandat
+  const C = BALANCE.confidence;
+  if (state.confidence <= C.revoke) state.over = 'revoked';
+  else if (state.year >= state.endYear) state.over = 'end';
+  else if (state.confidence < C.warn && conf0 >= C.warn)
+    logEvent('Alerte : confiance de l’ONU sous ' + C.warn + ' %. À 0 %, le mandat est révoqué.', 'bad');
+
+  // 7. Bilan de l'année
+  renderBilan({ T, pop0, pop1: totals().pop, conf0, events: yearEvents });
   render();
+  if (state.over) showEndReport();
+}
+
+/* Score de fin de mandat (affiché dans le bilan final). Détail renvoyé pour l'affichage. */
+function mandateScore(st = state) {
+  const won = st.contracts.filter(c => c.done).length;
+  const parts = [
+    ['Colonies', nColonies(st), 100],
+    ['Mondes hors du système', nExoWorlds(st), 250],
+    ['Habitants', Math.round(totalPop(st)), 1],
+    ['Technologies', st.tech.length, 10],
+    ['Objectifs réussis', won, 60],
+    ['Confiance finale', Math.round(st.confidence), 5],
+  ];
+  return { parts, total: parts.reduce((t, [, n, w]) => t + n * w, 0) };
 }
 
 /* ---------------------------------------------------------------------
@@ -193,6 +231,9 @@ function load() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) { toast('Aucune sauvegarde (les anciennes ne sont plus compatibles).'); return false; }
   state = JSON.parse(raw);
+  // Compatibilité avec les sauvegardes antérieures
+  state.sites.forEach(s => { if (s.project === undefined) s.project = null; s.b = s.b || {}; });
+  state.contracts = state.contracts || [];
   render();
   toast('Sauvegarde chargée.');
   return true;

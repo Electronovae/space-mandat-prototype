@@ -80,7 +80,7 @@ function drawContract(st) {
   let roll = Math.random() * Object.values(K.rewardWeights).reduce((a, b) => a + b, 0), kind = 'conf';
   for (const [k, w] of Object.entries(K.rewardWeights)) { if ((roll -= w) < 0) { kind = k; break; } }
   const amount = kind === 'conf'
-    ? def.reward
+    ? Math.max(3, Math.round(def.reward * K.rewardValue.conf))
     : Math.round(def.reward * K.rewardValue[kind] * (1 + elapsed * K.rewardGrowth) / (kind === 'budget' ? 5 : 1)) * (kind === 'budget' ? 5 : 1);
   const entry = { id: def.id, from: st.year, deadline: st.year + def.years, done: false, failed: false, kind, amount };
   st.contracts.push(entry);
