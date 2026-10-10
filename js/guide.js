@@ -1,5 +1,5 @@
 /* =====================================================================
-   GUIDE — tutoriel pas à pas, ANCRÉ DANS LA BARRE LATÉRALE
+   GUIDE : tutoriel pas à pas, ANCRÉ DANS LA BARRE LATÉRALE
    ---------------------------------------------------------------------
    v1.5 : plus aucune pop-up par-dessus le jeu. Le guide vit dans la colonne
    de gauche (place libre sous la navigation) ; il se contente de SURLIGNER
